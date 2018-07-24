@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     std::string cfg_file = "cfg/ishta_sp5.cfg";
     std::string weights_file = "weights/ishta_sp5.weights";
     std::string alpr_cfg_file = "cfg/open_alpr.conf";
-    std::string filename = "images.txt";
+    std::string filename = "";
 
     if (argc <= 1) {
         std::cout << "Need setting parameters for run application:" << std::endl;
@@ -39,14 +39,13 @@ int main(int argc, char *argv[])
 
     float const thresh = (argc > 5) ? std::stof(argv[5]) : 0.20;
 
-    if (filename.empty()) {
-        std::cerr << "Error: video filename don't set" << std::endl;
-        return -1;
-    }
-
     cv::VideoCapture capture;
 
-    capture.open(filename);
+    if(filename.empty()) {
+	capture.open(0);
+    } else {
+	capture.open(filename);
+    }
     if ( !capture.isOpened() ) {
         std::cerr << "Error: Can't open video file:" << filename << std::endl;
         return -1;
