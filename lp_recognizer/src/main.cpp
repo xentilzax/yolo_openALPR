@@ -39,25 +39,6 @@ int main(int argc, char *argv[])
 
     float const thresh = (argc > 5) ? std::stof(argv[5]) : 0.20;
 
-    cv::VideoCapture capture;
-
-    if(filename.empty()) {
-	capture.open(0);
-    } else {
-	capture.open(filename);
-    }
-    if ( !capture.isOpened() ) {
-        std::cerr << "Error: Can't open video file:" << filename << std::endl;
-        return -1;
-    }
-
-    size_t width = capture.get(CV_CAP_PROP_FRAME_WIDTH);
-    size_t height = capture.get(CV_CAP_PROP_FRAME_HEIGHT);
-    float fps = capture.get(CV_CAP_PROP_FPS);
-    //float countFramesRead = capture.get(CV_CAP_PROP_FRAME_COUNT);
-    std::cout << "size frames: " << width << "x" <<height << std::endl;
-
-
     alpr::Alpr openalpr("us", alpr_cfg_file);
     // Optionally, you can specify the top N possible plates to return (with confidences). The default is ten.
     openalpr.setTopN(5);
@@ -78,20 +59,50 @@ int main(int argc, char *argv[])
     int count_images = 0;
     int count_found_LP =0;
     int count_recognize_LP =0;
+    int count_fail_frame = 0;
     clock_t begin_time = clock();
     cv::Mat img;
     cv::Mat img_roi;
+    
+    cv::VideoCapture capture;
 
-    while ( fps ) {
+    while (1) {
+    if(filename.empty()) {
+	capture.open(0);
+    } else {
+	capture.open(filename);
+    }
+ 
+    if ( !capture.isOpened() ) {
+        std::cerr << "Error: Can't open video file:" << filename << std::endl;
+        return -1;
+    }
+
+    /*
+    size_t width = capture.get(CV_CAP_PROP_FRAME_WIDTH);
+    size_t height = capture.get(CV_CAP_PROP_FRAME_HEIGHT);
+    float fps = capture.get(CV_CAP_PROP_FPS);
+    //float countFramesRead = capture.get(CV_CAP_PROP_FRAME_COUNT);
+    std::cout << "size frames: " << width << "x" <<height << std::endl;
+    */
+
+    while ( capture.isOpened() ) {
         //read the current frame
 
         if(!capture.read(img)) {
-            break;
+            count_fail_frame++;
+            std::cout << "fail frame: " << count_fail_frame << std::endl;
+            if(count_fail_frame > 10) {
+                count_fail_frame = 0;
+                std::cout << "Reopen video stream" << std::endl;
+                break;                
+            }
+            //cv::waitKey(1);
+            continue;
         }
-        
         count_images++;
         
-        img.copyTo(img_roi);
+        //img.copyTo(img_roi);
 
 
         std::vector<bbox_t> result_vec;
@@ -118,7 +129,7 @@ int main(int argc, char *argv[])
                 if( plate.topNPlates.size() > 0) {
                     count_recognize_LP++;
                     alpr::AlprPlate candidate = plate.topNPlates[0];
-                    std::cout << "\nplate " << i << " : " << candidate.characters << std::endl;
+                    std::cout << "plate " << i << " : " << candidate.characters << std::endl;
                 } else {
                     std::cout << "Not found licinse plates" << std::endl;
                 }
@@ -127,18 +138,22 @@ int main(int argc, char *argv[])
 
         for(size_t i = 0; i < result_vec.size(); i++) {
             bbox_t b = result_vec[i];
-            cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(255, 255, 0), 2);
+            cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
         }
 
         cv::imshow("video stream", img);
-        if( cv::waitKey(1) == 27)
-            break;
+        if (cv::waitKey(1) >= 0)
+            return 0;
 
         std::cout  << "Frames: " << count_images
                    << "\tCount_found_LP: " << count_found_LP
-                   << "\tAvr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images <<"\r";
-        std::cout << std::flush;
+                   << "\tCount_recognize_LP: " << count_recognize_LP
+                   << "\tAvr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images 
+                   << std::endl;
+        //std::cout << std::flush;
     }//while
+    capture.release();
+    }
     std::cout << "\n==========================\n";
 
     std::cout << "avr. time : " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images << std::endl;
