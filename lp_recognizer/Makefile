@@ -1,43 +1,40 @@
-OPENCV=1
-
-OBJDIR=./obj/
-APPNAME=demo
 
 CPP=g++
-OPTS=-Ofast
-LDFLAGS= -lm -pthread 
-COMMON= 
-CFLAGS=-Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas
-CFLAGS+=$(OPTS)
+SOURCES=src/main.cpp src/post.cpp
+OBJECTS=$(SOURCES:.cpp=.o)
+EXECUTABLE=post
 
-ifeq ($(OPENCV), 1) 
+OPTS=-Ofast
+LDFLAGS= -lm -pthread -L./ -l:darknet.so -l:libopenalpr.so
+COMMON= -std=c++11
+CFLAGS= -Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas 
+CFLAGS+=$(OPTS) 
+
+#cURL
+COMMON+= `pkg-config --cflags libcurl`
+LDFLAGS+= `pkg-config --libs libcurl`
+
+#OpenCV
 CFLAGS+= -DOPENCV
 LDFLAGS+= `pkg-config --libs opencv` 
 COMMON+= `pkg-config --cflags opencv` 
-endif
 
-
-OBJ=main.o 
-
-OBJS = $(addprefix $(OBJDIR), $(OBJ))
-DEPS = $(wildcard src/*.h) Makefile
-
-all: obj $(APPNAME)
+DEPS = $(wildcard src/*.hpp) Makefile
 
 CFLAGS+= -fPIC
 LDFLAGS+= -Wl,-rpath='$$ORIGIN'
-	
-$(APPNAME): src/main.cpp 
-	$(CPP) -std=c++11 $(COMMON) $(CFLAGS) -o $@ src/main.cpp $(LDFLAGS) -I /usr/include -L/usr/lib  -I../darknet/src -L./ -l:darknet.so -l:libopenalpr.so
+INCLUDES=-I /usr/include -I ../darknet/src -I ./src
 
-$(OBJDIR)%.o: %.cpp $(DEPS)
-	$(CPP) $(COMMON) $(CFLAGS) -c $< -o $@
+all: $(SOURCES) $(EXECUTABLE)
+	 
+$(EXECUTABLE): $(OBJECTS) 
+	$(CPP) $(OBJECTS) -o $@ $(COMMON) $(LDFLAGS)
 
-obj:
-	mkdir -p obj
+src/post.o: src/post.cpp 
+	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/post.cpp -o $@ 
 
-.PHONY: clean
+src/main.o: src/main.cpp
+	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/main.cpp -o $@ 
 
 clean:
-	rm -rf $(OBJS) $(APPNAME)
-
+	rm -rf src/*.o post

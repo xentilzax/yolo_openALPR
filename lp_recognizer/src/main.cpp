@@ -8,11 +8,10 @@
 
 #include "yolo_v2_class.hpp"
 #include "alpr.h"
-
+#include "post.hpp"
 
 //Example run: ./demo cfg/yolov2-tiny-obj.cfg yolo-voc.weights cfg/open_alpr.conf images/1.jpg
-#include <iostream>
-#include <fstream>
+
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +37,24 @@ int main(int argc, char *argv[])
                 filename = argv[1];
 
     float const thresh = (argc > 5) ? std::stof(argv[5]) : 0.20;
+
+    if(curl_global_init(CURL_GLOBAL_ALL)) {
+      fprintf(stderr, "Fatal: The initialization of libcurl has failed.\n");
+      return EXIT_FAILURE;
+    }
+
+    if(atexit(curl_global_cleanup)) {
+      fprintf(stderr, "Fatal: atexit failed to register curl_global_cleanup.\n");
+      curl_global_cleanup();
+      return EXIT_FAILURE;
+    }
+
+    if(!PostHTTP("http://jsonplaceholder.typicode.com/posts", "{ name : \"Denis\" }")) {
+      fprintf(stderr, "Fatal: PostHTTP failed.\n");
+      return EXIT_FAILURE;
+    }
+
+    return 0;
 
     alpr::Alpr openalpr("us", alpr_cfg_file);
     // Optionally, you can specify the top N possible plates to return (with confidences). The default is ten.
@@ -78,14 +95,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /*
-    size_t width = capture.get(CV_CAP_PROP_FRAME_WIDTH);
-    size_t height = capture.get(CV_CAP_PROP_FRAME_HEIGHT);
-    float fps = capture.get(CV_CAP_PROP_FPS);
-    //float countFramesRead = capture.get(CV_CAP_PROP_FRAME_COUNT);
-    std::cout << "size frames: " << width << "x" <<height << std::endl;
-    */
-
     while ( capture.isOpened() ) {
         //read the current frame
 
@@ -101,8 +110,7 @@ int main(int argc, char *argv[])
             continue;
         }
         count_images++;
-        
-        //img.copyTo(img_roi);
+
 
 
         std::vector<bbox_t> result_vec;
@@ -123,7 +131,7 @@ int main(int argc, char *argv[])
 
             // Carefully observe the results. There may be multiple plates in an image,
             // and each plate returns the top N candidates.
-            for (int i = 0; i < results.plates.size(); i++)
+            for (size_t i = 0; i < results.plates.size(); i++)
             {
                 alpr::AlprPlateResult plate = results.plates[i];
                 if( plate.topNPlates.size() > 0) {
@@ -150,7 +158,6 @@ int main(int argc, char *argv[])
                    << "\tCount_recognize_LP: " << count_recognize_LP
                    << "\tAvr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images 
                    << std::endl;
-        //std::cout << std::flush;
     }//while
     capture.release();
     }
@@ -160,6 +167,4 @@ int main(int argc, char *argv[])
     std::cout << "total images: "<< count_images << std::endl;
     std::cout << "total detect lp: "<< count_found_LP << std::endl;
     std::cout << "total recognize lp: "<< count_recognize_LP << std::endl;
-
-    //capture.release();
 }
