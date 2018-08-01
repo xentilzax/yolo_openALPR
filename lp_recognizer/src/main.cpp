@@ -30,25 +30,29 @@ int main(int argc, char *argv[])
 
     if (argc <= 1) {
         help();
-    } else
-        if (argc == 3) {
-            file_config = argv[1];
-            filename = argv[2];
-            std::ifstream fs(file_config);
-            std::getline(fs, cfg_file);
-            std::getline(fs, weights_file);
-            std::getline(fs, alpr_cfg_file);
-            std::getline(fs, url);
-        } else
-            if (argc > 4) {	//voc.names yolo-voc.cfg yolo-voc.weights test.mp4
-                cfg_file = argv[1];
-                weights_file = argv[2];
-                alpr_cfg_file = argv[3];
-                filename = argv[4];
-            }
-            else
-                help();
-    float const thresh = (argc > 5) ? std::stof(argv[5]) : 0.20;
+    }
+    if (argc > 2) {
+        file_config = argv[1];
+        filename = argv[2];
+        std::ifstream fs(file_config);
+        std::getline(fs, cfg_file);
+        std::getline(fs, weights_file);
+        std::getline(fs, alpr_cfg_file);
+        std::getline(fs, url);
+    }
+    int enableWindow = 1;
+    if( argc > 3 ) {
+        std::string strEnableWindow = argv[3];
+        if( strEnableWindow == "console" )
+            enableWindow = 0;
+    }
+    float thresh = 0.20;
+    if( argc > 4 )
+        thresh = std::stof(argv[4]);
+
+    if( argc > 5 )
+        help();
+
 
     if(curl_global_init(CURL_GLOBAL_ALL)) {
         fprintf(stderr, "Fatal: The initialization of libcurl has failed.\n");
@@ -77,7 +81,9 @@ int main(int argc, char *argv[])
 
     Detector detector(cfg_file, weights_file);
 
-    cv::namedWindow("video stream",cv::WINDOW_NORMAL);
+    if ( enableWindow )
+        cv::namedWindow("video stream",cv::WINDOW_NORMAL);
+
     int count_images = 0;
     int count_found_LP =0;
     int count_recognize_LP =0;
@@ -160,9 +166,11 @@ int main(int argc, char *argv[])
                 cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
             }
 
-            cv::imshow("video stream", img);
-            if (cv::waitKey(1) >= 0)
-                return 0;
+            if ( enableWindow ) {
+                cv::imshow("video stream", img);
+                if (cv::waitKey(1) >= 0)
+                    return 0;
+            }
 
             std::cout  << "Frames: " << count_images
                        << "\tCount_found_LP: " << count_found_LP
