@@ -2,7 +2,7 @@
 CPP=g++
 SOURCES=src/main.cpp src/post.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=post
+EXECUTABLE=demo
 
 OPTS=-Ofast
 LDFLAGS= -lm -pthread -L./ -l:darknet.so -l:libopenalpr.so

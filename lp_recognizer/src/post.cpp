@@ -57,9 +57,9 @@ int PostHTTP(const std::string & url, const std::string & json)
 
   /* This is a test server, it fakes a reply as if the json object were
      created */
-  curl_easy_setopt(curl, CURLOPT_URL, url); // "http://jsonplaceholder.typicode.com/posts"
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str()); // "http://jsonplaceholder.typicode.com/posts"
 
-  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+  curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 
   res = curl_easy_perform(curl);
