@@ -1,6 +1,7 @@
 
 CPP=g++
-SOURCES=src/main.cpp src/post.cpp
+CC=gcc
+SOURCES=src/main.cpp src/post.cpp src/cJSON.c
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=lprecognazer
 
@@ -29,7 +30,10 @@ all: $(SOURCES) $(EXECUTABLE)
 	 
 $(EXECUTABLE): $(OBJECTS) 
 	$(CPP) $(OBJECTS) -o $@ $(COMMON) $(LDFLAGS)
-
+	
+src/cJSON.o: src/cJSON.c 
+	$(CC) $(OPTS) -c src/cJSON.c -o $@ 
+	
 src/post.o: src/post.cpp 
 	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/post.cpp -o $@ 
 

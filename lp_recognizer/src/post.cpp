@@ -18,20 +18,20 @@ Returns TRUE on success, FALSE on failure.
 */
 int PostHTTP(const std::string & url, const std::string & json)
 {
-  int retcode = FALSE;
-  CURL *curl = NULL;
-  CURLcode res = CURLE_FAILED_INIT;
-  char errbuf[CURL_ERROR_SIZE] = { 0, };
-  struct curl_slist *headers = NULL;
-  char agent[1024] = { 0, };
+    int retcode = FALSE;
+    CURL *curl = NULL;
+    CURLcode res = CURLE_FAILED_INIT;
+    char errbuf[CURL_ERROR_SIZE] = { 0, };
+    struct curl_slist *headers = NULL;
+    char agent[1024] = { 0, };
 
-  curl = curl_easy_init();
-  if(!curl) {
-    fprintf(stderr, "Error: curl_easy_init failed.\n");
-    goto cleanup;
-  }
+    curl = curl_easy_init();
+    if(!curl) {
+        fprintf(stderr, "Error: curl_easy_init failed.\n");
+        goto cleanup;
+    }
 
-  /* CURLOPT_CAINFO
+    /* CURLOPT_CAINFO
   To verify SSL sites you may need to load a bundle of certificates.
 
   You can download the default bundle here:
@@ -41,42 +41,42 @@ int PostHTTP(const std::string & url, const std::string & json)
   the bundle.
   http://curl.haxx.se/docs/ssl-compared.html
   */
-  curl_easy_setopt(curl, CURLOPT_CAINFO, "curl-ca-bundle.crt");
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "curl-ca-bundle.crt");
 
-  snprintf(agent, sizeof agent, "libcurl/%s",
-           curl_version_info(CURLVERSION_NOW)->version);
-  agent[sizeof agent - 1] = 0;
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
+    snprintf(agent, sizeof agent, "libcurl/%s",
+             curl_version_info(CURLVERSION_NOW)->version);
+    agent[sizeof agent - 1] = 0;
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, agent);
 
-  headers = curl_slist_append(headers, "Expect:");
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    headers = curl_slist_append(headers, "Expect:");
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
 
-  /* This is a test server, it fakes a reply as if the json object were
+    /* This is a test server, it fakes a reply as if the json object were
      created */
-  curl_easy_setopt(curl, CURLOPT_URL, url.c_str()); // "http://jsonplaceholder.typicode.com/posts"
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str()); // "http://jsonplaceholder.typicode.com/posts"
 
-  curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
-  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 
-  res = curl_easy_perform(curl);
-  if(res != CURLE_OK) {
-    size_t len = strlen(errbuf);
-    fprintf(stderr, "\nlibcurl: (%d) ", res);
-    if(len)
-      fprintf(stderr, "%s%s", errbuf, ((errbuf[len - 1] != '\n') ? "\n" : ""));
-    fprintf(stderr, "%s\n\n", curl_easy_strerror(res));
-    goto cleanup;
-  }
+    res = curl_easy_perform(curl);
+    if(res != CURLE_OK) {
+        size_t len = strlen(errbuf);
+        fprintf(stderr, "\nlibcurl: (%d) ", res);
+        if(len)
+            fprintf(stderr, "%s%s", errbuf, ((errbuf[len - 1] != '\n') ? "\n" : ""));
+        fprintf(stderr, "%s\n\n", curl_easy_strerror(res));
+        goto cleanup;
+    }
 
-  retcode = TRUE;
+    retcode = TRUE;
 
 cleanup:
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
-  return retcode;
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    return retcode;
 }
 
