@@ -2,7 +2,7 @@
 CPP=g++
 SOURCES=src/main.cpp src/post.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=lpr
+EXECUTABLE=lprecognazer
 
 OPTS=-Ofast
 LDFLAGS= -lm -pthread -L./ -l:darknet.so -l:libopenalpr.so
@@ -37,4 +37,4 @@ src/main.o: src/main.cpp
 	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/main.cpp -o $@ 
 
 clean:
-	rm -rf src/*.o post
+	rm -rf src/*.o $(EXECUTABLE)
