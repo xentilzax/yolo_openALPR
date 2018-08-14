@@ -12,6 +12,13 @@
 #define TRUE 1
 
 
+size_t ignore_output( void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    (void) ptr;
+    (void) stream;
+    return size * nmemb;
+}
+
 /* Post JSON data to a server.
 name and value must be UTF-8 strings.
 Returns TRUE on success, FALSE on failure.
@@ -61,6 +68,9 @@ int PostHTTP(const std::string & url, const std::string & json)
 
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+
+
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &ignore_output);
 
     res = curl_easy_perform(curl);
     if(res != CURLE_OK) {

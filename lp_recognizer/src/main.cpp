@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     Config cfg;
 
 
-    std::string config_filename = "cfg/lprecognizer.cfg";
+    std::string config_filename = "/opt/inex/lprecognizer/cfg/lprecognizer.cfg";
     std::ifstream fs(config_filename);
     if( !fs.good() ) {
         std::cout << "Error: Can't open config file: " << config_filename << std::endl;
@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     std::string str((std::istreambuf_iterator<char>(fs)),
                     std::istreambuf_iterator<char>());
 
-    std::cout << "JSON config: " << str << std::endl;
-    std::cout << std::flush;
+   // std::cout << "JSON config: " << str << std::endl;
+   // std::cout << std::flush;
     ParseConfig(str, cfg);
 
     if(curl_global_init(CURL_GLOBAL_ALL)) {
@@ -156,9 +156,9 @@ int main(int argc, char *argv[])
                     if( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
                         alpr::AlprPlate candidate = plate.topNPlates[0];
-                        std::cout << "plate " << i << " : " << candidate.characters << std::endl;
+                        //std::cout << "plate " << i << " : " << candidate.characters << std::endl;
                     } else {
-                        std::cout << "Not found licinse plates" << std::endl;
+                        //std::cout << "Not found licinse plates" << std::endl;
                     }
                 }
 
@@ -181,11 +181,13 @@ int main(int argc, char *argv[])
                     return 0;
             }
 
+
             std::cout  << "Frames: " << count_images
-                       << "\tCount_found_LP: " << count_found_LP
-                       << "\tCount_recognize_LP: " << count_recognize_LP
-                       << "\tAvr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images
+                       << " Count_found_LP: " << count_found_LP
+                       << " Count_recognize_LP: " << count_recognize_LP
+                       << " Avr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images
                        << std::endl;
+
         }//while
         capture.release();
     }
