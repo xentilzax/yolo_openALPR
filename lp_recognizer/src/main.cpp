@@ -48,7 +48,13 @@ int main(int argc, char *argv[])
 
     Config cfg;
 
-    std::ifstream fs("cfg/lprecognizer.cfg");
+
+    std::string config_filename = "cfg/lprecognizer.cfg";
+    std::ifstream fs(config_filename);
+    if( !fs.good() ) {
+        std::cout << "Error: Can't open config file: " << config_filename << std::endl;
+        return 0x0A;
+    }
     std::string str((std::istreambuf_iterator<char>(fs)),
                     std::istreambuf_iterator<char>());
 
