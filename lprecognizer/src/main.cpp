@@ -139,10 +139,10 @@ int main(int argc, char *argv[])
                     if( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
                         alpr::AlprPlate candidate = plate.topNPlates[0];
-                        if ( cfg.verbose_level == 2 )
+                        if ( cfg.verbose_level >= 2 )
                             std::cout << "plate " << i << " : " << candidate.characters << std::endl;
                     } else {
-                        if ( cfg.verbose_level == 2 )
+                        if ( cfg.verbose_level >= 2 )
                             std::cout << "Not found licinse plates" << std::endl;
                     }
                 }
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
                     return 0;
             }
 
-            if ( cfg.verbose_level == 1 ) {
+            if ( cfg.verbose_level >= 1 ) {
                 std::cout  << "Frames: " << count_images
                            << " Count_found_LP: " << count_found_LP
                            << " Count_recognize_LP: " << count_recognize_LP

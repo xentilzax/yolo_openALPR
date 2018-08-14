@@ -11,6 +11,8 @@ BRANCH=${1:-"master"}
 VERSION="1.0"
 DESCRIPTION="License plate recognizer"
 WORKSPACE=$PWD
+CWD=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 
 echo "branch = $BRANCH"
 
@@ -37,4 +39,7 @@ fpm -f -t deb -s dir -C "$RELEASE_DIR" \
     --version "$VERSION" \
     --description "$DESCRIPTION" \
     --prefix "/opt/$COMPANY/$NAME" \
-    -p $WORKSPACE
+    -p $WORKSPACE \
+    --after-install "$CWD/lprecognizer/register_service.sh" \
+    --before-remove "$CWD/lprecognizer/unregister_service.sh"
+
