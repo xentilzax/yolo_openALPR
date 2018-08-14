@@ -2,7 +2,6 @@
 Description=Inex license plates recognizer
 
 [Service]
-Environment= MY_ENVIRONMENT_VAR =/path/to/file.config
 WorkingDirectory=/opt/inex/lprecognizer
 ExecStart=/opt/inex/lprecognizer
 Restart=always
