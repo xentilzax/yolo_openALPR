@@ -3,10 +3,10 @@ CPP=g++
 CC=gcc
 SOURCES=src/main.cpp src/post.cpp src/cJSON.c
 OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=lprecognazer
+EXECUTABLE=lprecognizer
 
 OPTS=-Ofast
-LDFLAGS= -lm -pthread -L./ -l:darknet.so -l:libopenalpr.so
+LDFLAGS= -lm -pthread -L../darknet -l:nn.so -l:libopenalpr.so
 COMMON= -std=c++11
 CFLAGS= -Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas 
 CFLAGS+=$(OPTS) 

@@ -40,8 +40,9 @@ VPATH=./src/
 EXEC=darknet
 OBJDIR=./obj/
 
+
 ifeq ($(LIBSO), 1)
-LIBNAMESO=darknet.so
+LIBNAMESO=nn.so
 endif
 
 CC=gcc
@@ -61,6 +62,10 @@ endif
 endif
 
 CFLAGS+=$(OPTS)
+
+ifeq ($(SYS_ARCH), i386)
+COMMON+=-m32
+endif
 
 ifeq ($(OPENCV), 1) 
 COMMON+= -DOPENCV
@@ -142,6 +147,6 @@ results:
 .PHONY: clean
 
 clean:
-	rm -rf $(OBJS) $(LIBNAMESO) 
+	rm -rf $(OBJS) $(LIBNAMESO) *.so
 	#$(EXEC)
 
