@@ -2,8 +2,9 @@
 Description=Inex license plates recognizer
 
 [Service]
+User=root
 WorkingDirectory=/opt/inex/lprecognizer
-ExecStart=/opt/inex/lprecognizer
+ExecStart=/opt/inex/lprecognizer/lprecognizer
 Restart=always
 
 [Install]
