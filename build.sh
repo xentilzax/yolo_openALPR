@@ -16,4 +16,4 @@ cp -r ./darknet/weights ./build/
 cp -r ./darknet/cfg ./build/
 cp -r ./lp_recognizer/cfg ./build/
 cp ./darknet/nn.so ./build/
-cp ./lp_recognizer/lprecognazer ./build/
+cp ./lp_recognizer/lprecognizer ./build/
