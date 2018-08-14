@@ -4,8 +4,7 @@ set -eux
 cd ./darknet
 make clean
 make -j4
-#cp -f nn.so ../lp_recognizer/
-cd ../lp_recognizer
+cd ../lprecognizer
 make clean
 make
 cd ..
@@ -14,8 +13,9 @@ rm -rf build
 mkdir -p build
 cp -r ./darknet/weights ./build/
 cp -r ./darknet/cfg ./build/
-cp -r ./lp_recognizer/cfg ./build/
-cp -r ./lp_recognizer/register_service.sh ./build/
+cp -r ./lprecognizer/cfg ./build/
+cp -r ./lprecognizer/register_service.sh ./build/
+cp -r ./lprecognizer/unregister_service.sh ./build/
 
 cp ./darknet/nn.so ./build/
-cp ./lp_recognizer/lprecognizer ./build/
+cp ./lprecognizer/lprecognizer ./build/
