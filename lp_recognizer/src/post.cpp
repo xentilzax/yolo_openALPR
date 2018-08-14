@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+#include "common.hpp"
 #include "post.hpp"
 
 
@@ -70,7 +70,8 @@ int PostHTTP(const std::string & url, const std::string & json)
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 
 
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &ignore_output);
+    if ( cfg.verbose_level < 3 )
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &ignore_output);
 
     res = curl_easy_perform(curl);
     if(res != CURLE_OK) {

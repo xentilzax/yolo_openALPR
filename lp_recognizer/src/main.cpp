@@ -10,24 +10,11 @@
 #include "alpr.h"
 #include "yolo_v2_class.hpp"
 
+#include "common.hpp"
 #include "cJSON.h"
 #include "post.hpp"
 
-
-//---------------------------------------------------------------------------------------------------------------
-class Config
-{
-public:
-    std::string yolo_cfg = "cfg/ishta_sp5.cfg";
-    std::string yolo_weights = "weights/ishta_sp5.weights";
-    std::string open_alpr_cfg = "cfg/open_alpr.conf";
-    std::string open_alpr_contry = "us";
-    std::string open_alpr_region = "md";
-    std::string server = "http://jsonplaceholder.typicode.com/posts";
-    std::string camera = "";
-    int gui_enable = 0;
-    float thresh;
-};
+Config cfg;
 
 //---------------------------------------------------------------------------------------------------------------
 int ParseConfig(const std::string & str, Config & cfg);
@@ -45,11 +32,7 @@ void help()
 //---------------------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-
-    Config cfg;
-
-
-    std::string config_filename = "/opt/inex/lprecognizer/cfg/lprecognizer.cfg";
+    std::string config_filename = "cfg/lprecognizer.cfg";
     std::ifstream fs(config_filename);
     if( !fs.good() ) {
         std::cout << "Error: Can't open config file: " << config_filename << std::endl;
@@ -58,8 +41,8 @@ int main(int argc, char *argv[])
     std::string str((std::istreambuf_iterator<char>(fs)),
                     std::istreambuf_iterator<char>());
 
-   // std::cout << "JSON config: " << str << std::endl;
-   // std::cout << std::flush;
+    std::cout << "JSON config: " << str << std::endl;
+    std::cout << std::flush;
     ParseConfig(str, cfg);
 
     if(curl_global_init(CURL_GLOBAL_ALL)) {
@@ -135,7 +118,7 @@ int main(int argc, char *argv[])
             std::vector<bbox_t> result_vec;
             std::vector<alpr::AlprRegionOfInterest> roi_list;
 
-            result_vec = detector.detect(img, cfg.thresh);
+            result_vec = detector.detect(img, cfg.yolo_thresh);
 
             for(size_t i = 0; i < result_vec.size(); i++) {
                 count_found_LP++;
@@ -156,17 +139,21 @@ int main(int argc, char *argv[])
                     if( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
                         alpr::AlprPlate candidate = plate.topNPlates[0];
-                        //std::cout << "plate " << i << " : " << candidate.characters << std::endl;
+                        if ( cfg.verbose_level == 2 )
+                            std::cout << "plate " << i << " : " << candidate.characters << std::endl;
                     } else {
-                        //std::cout << "Not found licinse plates" << std::endl;
+                        if ( cfg.verbose_level == 2 )
+                            std::cout << "Not found licinse plates" << std::endl;
                     }
                 }
 
-                std::string jsonResults = alpr::Alpr::toJson(results);
+                if( results.plates.size() > 0 ) {
+                    std::string jsonResults = alpr::Alpr::toJson(results);
 
-                if(!PostHTTP(cfg.server, jsonResults)) {
-                    fprintf(stderr, "Fatal: PostHTTP failed.\n");
-                    return EXIT_FAILURE;
+                    if(!PostHTTP(cfg.server, jsonResults)) {
+                        fprintf(stderr, "Fatal: PostHTTP failed.\n");
+                        return EXIT_FAILURE;
+                    }
                 }
             }//for
 
@@ -181,12 +168,13 @@ int main(int argc, char *argv[])
                     return 0;
             }
 
-
-            std::cout  << "Frames: " << count_images
-                       << " Count_found_LP: " << count_found_LP
-                       << " Count_recognize_LP: " << count_recognize_LP
-                       << " Avr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images
-                       << std::endl;
+            if ( cfg.verbose_level == 1 ) {
+                std::cout  << "Frames: " << count_images
+                           << " Count_found_LP: " << count_found_LP
+                           << " Count_recognize_LP: " << count_recognize_LP
+                           << " Avr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images
+                           << std::endl;
+            }
 
         }//while
         capture.release();
@@ -231,7 +219,7 @@ int ParseConfig(const std::string & str, Config & cfg)
     if (json == NULL)
         goto end;
 
-//YOLO
+    //YOLO
     json_sub = cJSON_GetObjectItemCaseSensitive(json, "yolo");
     if (json_sub == NULL)
         goto end;
@@ -248,10 +236,10 @@ int ParseConfig(const std::string & str, Config & cfg)
 
     json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "threshold");
     if (cJSON_IsNumber(json_item)) {
-        cfg.thresh = json_item->valuedouble;
+        cfg.yolo_thresh = json_item->valuedouble;
     }
 
-//Open_ALPR
+    //Open_ALPR
     json_sub = cJSON_GetObjectItemCaseSensitive(json, "open_alpr");
     if (json_sub == NULL)
         goto end;
@@ -285,6 +273,11 @@ int ParseConfig(const std::string & str, Config & cfg)
     json_item = cJSON_GetObjectItemCaseSensitive(json, "gui");
     if (cJSON_IsNumber(json_item)) {
         cfg.gui_enable = json_item->valueint;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json, "verbose_level");
+    if (cJSON_IsNumber(json_item)) {
+        cfg.verbose_level = json_item->valueint;
     }
 
     cJSON_Delete(json);
