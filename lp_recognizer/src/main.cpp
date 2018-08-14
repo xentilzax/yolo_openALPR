@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
     Config cfg;
 
-    std::ifstream fs("cfg/lprecognazer.cfg");
+    std::ifstream fs("cfg/lprecognizer.cfg");
     std::string str((std::istreambuf_iterator<char>(fs)),
                     std::istreambuf_iterator<char>());
 
