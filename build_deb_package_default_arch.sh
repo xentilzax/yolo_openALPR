@@ -6,7 +6,7 @@ set -eux
 # Собирает DEB-пакет для inex license plate recognazer 
 #
 COMPANY="inex"
-NAME="lpreconizer"
+NAME="lprecognizer"
 BRANCH=${1:-"master"}
 VERSION="1.0"
 DESCRIPTION="License plate recognizer"
