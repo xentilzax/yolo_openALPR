@@ -2,27 +2,17 @@ sudo apt install curl libopencv-dev libcurl4-openssl-dev
 
 #CUDA
 sudo apt-get install nvidia-384 nvidia-modprobe
-wget https://developer.nvidia.com/compute/cuda/9.0/Prod/local_installers/cuda_9.0.176_384.81_linux-run
-chmod +x cuda_9.0.176_384.81_linux-run
-./cuda_9.0.176_384.81_linux-run
-sudo ./cuda-linux.9.0.176-22781540.run
-sudo bash -c "echo /usr/local/cuda/lib64/ > /etc/ld.so.conf.d/cuda.conf"
-sudo ldconfig
 
-echo export CUDA_HOME=/usr/local/cuda-9.0 >> .bashrc 
-echo export LD_LIBRARY_PATH=\${CUDA_HOME}/lib:\$LD_LIBRARY_PATH >> .bashrc
-echo export PATH=\${CUDA_HOME}/bin:\${PATH} >> .bashrc
+wget https://developer.nvidia.com/compute/cuda/9.2/Prod2/local_installers/cuda-repo-ubuntu1604-9-2-local_9.2.148-1_amd64
+mv cuda-repo-ubuntu1604-9-2-local_9.2.148-1_amd64 cuda-repo-ubuntu1604-9-2-local_9.2.148-1_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu1604-9-2-local_9.2.148-1_amd64.deb
+sudo apt-key add /var/cuda-repo-9-2-local/7fa2af80.pub
+sudo apt-get update
+sudo apt-get install cuda
 
-#it just for NVCC
-#uncomment this if you want compile your sources with nvcc
-#cp /etc/environment ~/environment
-#sed -i -e 's/\:\/usr\/local\/cuda\/bin//g' ~/environment
-#sed -i -e 's/PATH=\"/PATH=\"\/usr\/local\/cuda\/bin:/g' ~/environment
-#sudo cp ~/environment /etc/
-#sudo echo PATH=\${PATH}:/usr/local/cuda/bin >> ~/environment
 
 #CUDnn
-
+#wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/v7.2.1/prod/9.0_20180806/Ubuntu16_04-x64/libcudnn7-dev_7.2.1.38-1_cuda9.0_amd64
 
 # install open_ALPR
 #bash <(curl -s https://deb.openalpr.com/install)
