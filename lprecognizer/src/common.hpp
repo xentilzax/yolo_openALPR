@@ -6,6 +6,7 @@
 class Config
 {
 public:
+    int use_yolo_detector = 1;
     std::string yolo_cfg = "cfg/ishta_sp5.cfg";
     std::string yolo_weights = "weights/ishta_sp5.weights";
     std::string open_alpr_cfg = "cfg/open_alpr.conf";

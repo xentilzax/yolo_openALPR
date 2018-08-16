@@ -56,6 +56,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    if ( !cfg.use_yolo_detector ) {
+        cfg.open_alpr_cfg = "";
+    }
+
     alpr::Alpr openalpr(cfg.open_alpr_contry, cfg.open_alpr_cfg);
     // Optionally, you can specify the top N possible plates to return (with confidences). The default is ten.
     openalpr.setTopN(5);
@@ -79,11 +83,12 @@ int main(int argc, char *argv[])
     int count_found_LP =0;
     int count_recognize_LP =0;
     int count_fail_frame = 0;
-    clock_t begin_time = clock();
     cv::Mat img;
     cv::Mat img_roi;
     
     cv::VideoCapture capture;
+
+    float avr_dtime = 0;
 
     while (1) {
         if(cfg.camera.empty()) {
@@ -99,6 +104,7 @@ int main(int argc, char *argv[])
 
         while ( capture.isOpened() ) {
             //read the current frame
+            clock_t begin_time = clock();
 
             if(!capture.read(img)) {
                 count_fail_frame++;
@@ -113,28 +119,60 @@ int main(int argc, char *argv[])
             }
             count_images++;
 
-
-
             std::vector<bbox_t> result_vec;
             std::vector<alpr::AlprRegionOfInterest> roi_list;
+            alpr::AlprResults results;
 
-            result_vec = detector.detect(img, cfg.yolo_thresh);
+            if ( cfg.use_yolo_detector ) { // use YOLO detector LP
+                result_vec = detector.detect(img, cfg.yolo_thresh);
 
-            for(size_t i = 0; i < result_vec.size(); i++) {
-                count_found_LP++;
+                for(size_t i = 0; i < result_vec.size(); i++) {
+                    count_found_LP++;
 
-                bbox_t b = result_vec[i];
-                img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
+                    bbox_t b = result_vec[i];
+                    img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
 
-                alpr::AlprResults results;
+                    // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
+                    results = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
 
-                // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
-                results = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
+                    // Carefully observe the results. There may be multiple plates in an image,
+                    // and each plate returns the top N candidates.
+                    for (size_t i = 0; i < results.plates.size(); i++)
+                    {
+                        alpr::AlprPlateResult plate = results.plates[i];
+                        if( plate.topNPlates.size() > 0) {
+                            count_recognize_LP++;
+                            alpr::AlprPlate candidate = plate.topNPlates[0];
+                            if ( cfg.verbose_level >= 2 )
+                                std::cout << "plate " << i << " : " << candidate.characters << std::endl;
+                        } else {
+                            if ( cfg.verbose_level >= 2 )
+                                std::cout << "Not found licinse plates" << std::endl;
+                        }
+                    }
 
-                // Carefully observe the results. There may be multiple plates in an image,
-                // and each plate returns the top N candidates.
-                for (size_t i = 0; i < results.plates.size(); i++)
-                {
+                    if( results.plates.size() > 0 ) {
+                        std::string jsonResults = alpr::Alpr::toJson(results);
+
+                        if(!PostHTTP(cfg.server, jsonResults)) {
+                            fprintf(stderr, "Fatal: PostHTTP failed.\n");
+                            return EXIT_FAILURE;
+                        }
+                    }
+                }//for
+
+                for(size_t i = 0; i < result_vec.size(); i++) {
+                    bbox_t b = result_vec[i];
+                    cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
+                }
+
+            } else { //use Open_ALPR detector LP
+
+                results = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
+
+                for(size_t i = 0; i < results.plates.size(); i++) {
+                    count_found_LP++;
+
                     alpr::AlprPlateResult plate = results.plates[i];
                     if( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
@@ -145,22 +183,30 @@ int main(int argc, char *argv[])
                         if ( cfg.verbose_level >= 2 )
                             std::cout << "Not found licinse plates" << std::endl;
                     }
-                }
 
-                if( results.plates.size() > 0 ) {
-                    std::string jsonResults = alpr::Alpr::toJson(results);
+                    if( results.plates.size() > 0 ) {
+                        std::string jsonResults = alpr::Alpr::toJson(results);
 
-                    if(!PostHTTP(cfg.server, jsonResults)) {
-                        fprintf(stderr, "Fatal: PostHTTP failed.\n");
-                        return EXIT_FAILURE;
+                        if(!PostHTTP(cfg.server, jsonResults)) {
+                            fprintf(stderr, "Fatal: PostHTTP failed.\n");
+                            return EXIT_FAILURE;
+                        }
                     }
-                }
-            }//for
+                }//for
 
-            for(size_t i = 0; i < result_vec.size(); i++) {
-                bbox_t b = result_vec[i];
-                cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
-            }
+                cv::Point points[4];
+                const cv::Point* pts[1] = {points};
+                int npts[1] = {4};
+
+                for(size_t i = 0; i < results.plates.size(); i++) {
+                    for(size_t j = 0; j < 4; j++) {
+                        points[j].x = results.plates[i].plate_points[j].x;
+                        points[j].y = results.plates[i].plate_points[j].y;
+                    }
+
+                    cv::polylines(img, pts, npts, 1, true, cv::Scalar(0, 0, 255), 2);
+                }
+            }//end IF(yolo)
 
             if ( cfg.gui_enable ) {
                 cv::imshow("video stream", img);
@@ -168,23 +214,27 @@ int main(int argc, char *argv[])
                     return 0;
             }
 
+            float cur_dtime = float(clock() - begin_time) / CLOCKS_PER_SEC;
+            avr_dtime = 0.1 * cur_dtime + 0.9 * avr_dtime;
+
             if ( cfg.verbose_level >= 1 ) {
                 std::cout  << "Frames: " << count_images
                            << " Count_found_LP: " << count_found_LP
                            << " Count_recognize_LP: " << count_recognize_LP
-                           << " Avr.time: " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images
+                           << " Avr.time: " <<  avr_dtime
                            << std::endl;
             }
 
         }//while
         capture.release();
     }
-    std::cout << "\n==========================\n";
 
-    std::cout << "avr. time : " << float(clock() - begin_time) / CLOCKS_PER_SEC / count_images << std::endl;
-    std::cout << "total images: "<< count_images << std::endl;
-    std::cout << "total detect lp: "<< count_found_LP << std::endl;
-    std::cout << "total recognize lp: "<< count_recognize_LP << std::endl;
+    if ( cfg.verbose_level >= 1 ) {
+        std::cout << "\n==========================\n";
+        std::cout << "total images: "<< count_images << std::endl;
+        std::cout << "total detect lp: "<< count_found_LP << std::endl;
+        std::cout << "total recognize lp: "<< count_recognize_LP << std::endl;
+    }
 }
 
 //---------------------------------------------------------------------------------------------------------------
@@ -260,6 +310,11 @@ int ParseConfig(const std::string & str, Config & cfg)
     }
 
     //LP Recognazer
+    json_item = cJSON_GetObjectItemCaseSensitive(json, "use_yolo_detector");
+    if (cJSON_IsNumber(json_item)) {
+        cfg.use_yolo_detector = json_item->valueint;
+    }
+
     json_item = cJSON_GetObjectItemCaseSensitive(json, "http_server");
     if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
         cfg.server = json_item->valuestring;
