@@ -2,6 +2,7 @@ GPU=1
 CUDNN=1
 CUDNN_HALF=0
 OPENCV=1
+OPENCV3=1
 AVX=0
 OPENMP=1
 LIBSO=1
@@ -70,8 +71,28 @@ endif
 ifeq ($(OPENCV), 1) 
 COMMON+= -DOPENCV
 CFLAGS+= -DOPENCV
-LDFLAGS+= `pkg-config --libs opencv` 
-COMMON+= `pkg-config --cflags opencv` 
+ifeq ($(OPENCV3), 1) 
+LDFLAGS += \
+    -l:libopencv_videoio.so.3.3 \
+    -l:libopencv_video.so.3.3 \
+    -l:libopencv_highgui.so.3.3 \
+    -l:libopencv_imgproc.so.3.3 \
+    -l:libopencv_imgcodecs.so.3.3 \
+    -l:libopencv_core.so.3.3
+#LDFLAGS += \
+#    -l"opencv_videoio" \
+#    -l"opencv_video" \
+#    -l"opencv_highgui" \
+#    -l"opencv_imgproc" \
+#    -l"opencv_imgcodecs" \
+#    -l"opencv_core"
+else
+LDFLAGS += \
+    -l"opencv_video" \
+    -l"opencv_highgui" \
+    -l"opencv_imgproc" \
+    -l"opencv_core"
+endif
 endif
 
 ifeq ($(OPENMP), 1)

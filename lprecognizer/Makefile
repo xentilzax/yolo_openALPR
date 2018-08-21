@@ -1,3 +1,8 @@
+OPENCV=1
+OPENCV3=1
+
+DEBUG = 0
+
 
 CPP=g++
 CC=gcc
@@ -11,14 +16,38 @@ COMMON= -std=c++11
 CFLAGS= -Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas 
 CFLAGS+=$(OPTS) 
 
+ifeq ($(DEBUG), 1) 
+OPTS= -O0 -g
+endif
+
 #cURL
 COMMON+= `pkg-config --cflags libcurl`
 LDFLAGS+= `pkg-config --libs libcurl`
 
+
 #OpenCV
+ifeq ($(OPENCV), 1) 
+COMMON+= -DOPENCV
 CFLAGS+= -DOPENCV
-LDFLAGS+= `pkg-config --libs opencv` 
-COMMON+= `pkg-config --cflags opencv` 
+ifeq ($(OPENCV3), 1) 
+LDFLAGS += \
+    -l:libopencv_videoio.so.3.3 \
+    -l:libopencv_video.so.3.3 \
+    -l:libopencv_highgui.so.3.3 \
+    -l:libopencv_imgproc.so.3.3 \
+    -l:libopencv_imgcodecs.so.3.3 \
+    -l:libopencv_core.so.3.3
+else
+LDFLAGS += \
+    -l"opencv_video" \
+    -l"opencv_highgui" \
+    -l"opencv_imgproc" \
+    -l"opencv_core"
+endif
+endif
+#CFLAGS+= -DOPENCV
+#LDFLAGS+= `pkg-config --libs opencv` 
+#COMMON+= `pkg-config --cflags opencv` 
 
 DEPS = $(wildcard src/*.hpp) Makefile
 
