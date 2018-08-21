@@ -114,7 +114,6 @@ int main(int argc, char *argv[])
                     std::cout << "Reopen video stream" << std::endl;
                     break;
                 }
-                //cv::waitKey(1);
                 continue;
             }
             count_images++;
@@ -147,7 +146,7 @@ int main(int argc, char *argv[])
                                 std::cout << "plate " << i << " : " << candidate.characters << std::endl;
                         } else {
                             if ( cfg.verbose_level >= 2 )
-                                std::cout << "Not found licinse plates" << std::endl;
+                                std::cout << "Not found license plates" << std::endl;
                         }
                     }
 
@@ -161,9 +160,11 @@ int main(int argc, char *argv[])
                     }
                 }//for
 
-                for(size_t i = 0; i < result_vec.size(); i++) {
-                    bbox_t b = result_vec[i];
-                    cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
+                if ( cfg.gui_enable ) {
+                    for(size_t i = 0; i < result_vec.size(); i++) {
+                        bbox_t b = result_vec[i];
+                        cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
+                    }
                 }
 
             } else { //use Open_ALPR detector LP
@@ -194,17 +195,19 @@ int main(int argc, char *argv[])
                     }
                 }//for
 
-                cv::Point points[4];
-                const cv::Point* pts[1] = {points};
-                int npts[1] = {4};
 
-                for(size_t i = 0; i < results.plates.size(); i++) {
-                    for(size_t j = 0; j < 4; j++) {
-                        points[j].x = results.plates[i].plate_points[j].x;
-                        points[j].y = results.plates[i].plate_points[j].y;
+                if ( cfg.gui_enable ) {
+                    cv::Point points[4];
+                    const cv::Point* pts[1] = {points};
+                    int npts[1] = {4};
+
+                    for(size_t i = 0; i < results.plates.size(); i++) {
+                        for(size_t j = 0; j < 4; j++) {
+                            points[j].x = results.plates[i].plate_points[j].x;
+                            points[j].y = results.plates[i].plate_points[j].y;
+                        }
+                        cv::polylines(img, pts, npts, 1, true, cv::Scalar(0, 0, 255), 2);
                     }
-
-                    cv::polylines(img, pts, npts, 1, true, cv::Scalar(0, 0, 255), 2);
                 }
             }//end IF(yolo)
 
@@ -219,8 +222,8 @@ int main(int argc, char *argv[])
 
             if ( cfg.verbose_level >= 1 ) {
                 std::cout  << "Frames: " << count_images
-                           << " Count_found_LP: " << count_found_LP
-                           << " Count_recognize_LP: " << count_recognize_LP
+                           << " number detect plates: " << count_found_LP
+                           << " number recognize plates: " << count_recognize_LP
                            << " Avr.time: " <<  avr_dtime
                            << std::endl;
             }
