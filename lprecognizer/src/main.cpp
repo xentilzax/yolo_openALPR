@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
         while ( capture.isOpened() ) {
             //read the current frame
             clock_t begin_time = clock();
+            clock_t end_time;
 
             if(!capture.read(img)) {
                 count_fail_frame++;
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
 
             std::vector<bbox_t> result_vec;
             std::vector<alpr::AlprRegionOfInterest> roi_list;
-            alpr::AlprResults results;
+            std::vector<alpr::AlprResults> results;
 
             if ( cfg.use_yolo_detector ) { // use YOLO detector LP
                 result_vec = detector.detect(img, cfg.yolo_thresh);
@@ -132,32 +133,9 @@ int main(int argc, char *argv[])
                     img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
 
                     // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
-                    results = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
-
-                    // Carefully observe the results. There may be multiple plates in an image,
-                    // and each plate returns the top N candidates.
-                    for (size_t i = 0; i < results.plates.size(); i++)
-                    {
-                        alpr::AlprPlateResult plate = results.plates[i];
-                        if( plate.topNPlates.size() > 0) {
-                            count_recognize_LP++;
-                            alpr::AlprPlate candidate = plate.topNPlates[0];
-                            if ( cfg.verbose_level >= 2 )
-                                std::cout << "plate " << i << " : " << candidate.characters << std::endl;
-                        } else {
-                            if ( cfg.verbose_level >= 2 )
-                                std::cout << "Not found license plates" << std::endl;
-                        }
-                    }
-
-                    if( results.plates.size() > 0 ) {
-                        std::string jsonResults = alpr::Alpr::toJson(results);
-
-                        if(!PostHTTP(cfg.server, jsonResults)) {
-                            fprintf(stderr, "Fatal: PostHTTP failed.\n");
-                            return EXIT_FAILURE;
-                        }
-                    }
+                    alpr::AlprResults result;
+                    result = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
+                    results.push_back(result);
                 }//for
 
                 if ( cfg.gui_enable ) {
@@ -166,50 +144,61 @@ int main(int argc, char *argv[])
                         cv::rectangle(img, cv::Rect(b.x, b.y, b.w, b.h), cv::Scalar(0, 0, 255), 2);
                     }
                 }
-
             } else { //use Open_ALPR detector LP
-
-                results = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
-
-                for(size_t i = 0; i < results.plates.size(); i++) {
-                    count_found_LP++;
-
-                    alpr::AlprPlateResult plate = results.plates[i];
-                    if( plate.topNPlates.size() > 0) {
-                        count_recognize_LP++;
-                        alpr::AlprPlate candidate = plate.topNPlates[0];
-                        if ( cfg.verbose_level >= 2 )
-                            std::cout << "plate " << i << " : " << candidate.characters << std::endl;
-                    } else {
-                        if ( cfg.verbose_level >= 2 )
-                            std::cout << "Not found licinse plates" << std::endl;
-                    }
-
-                    if( results.plates.size() > 0 ) {
-                        std::string jsonResults = alpr::Alpr::toJson(results);
-
-                        if(!PostHTTP(cfg.server, jsonResults)) {
-                            fprintf(stderr, "Fatal: PostHTTP failed.\n");
-                            return EXIT_FAILURE;
-                        }
-                    }
-                }//for
-
+                alpr::AlprResults result;
+                result = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
+                results.push_back(result);
 
                 if ( cfg.gui_enable ) {
                     cv::Point points[4];
                     const cv::Point* pts[1] = {points};
                     int npts[1] = {4};
 
-                    for(size_t i = 0; i < results.plates.size(); i++) {
+                    for(size_t i = 0; i < result.plates.size(); i++) {
                         for(size_t j = 0; j < 4; j++) {
-                            points[j].x = results.plates[i].plate_points[j].x;
-                            points[j].y = results.plates[i].plate_points[j].y;
+                            points[j].x = result.plates[i].plate_points[j].x;
+                            points[j].y = result.plates[i].plate_points[j].y;
                         }
                         cv::polylines(img, pts, npts, 1, true, cv::Scalar(0, 0, 255), 2);
                     }
                 }
             }//end IF(yolo)
+
+            end_time =clock();
+
+            if ( cfg.verbose_level >= 2 ) {
+                for (size_t j = 0; j < results.size(); j++) {
+                    // Carefully observe the results. There may be multiple plates in an image,
+                    // and each plate returns the top N candidates.
+                    for (size_t i = 0; i < results[j].plates.size(); i++)
+                    {
+                        alpr::AlprPlateResult plate = results[j].plates[i];
+                        if( plate.topNPlates.size() > 0) {
+                            alpr::AlprPlate candidate = plate.topNPlates[0];
+                            std::cout << "plate " << i << " : " << candidate.characters << std::endl;
+                        } else {
+                            std::cout << "Not found license plates" << std::endl;
+                        }
+                    }
+                }
+            }
+
+            for (size_t j = 0; j < results.size(); j++) {
+                for (size_t i = 0; i < results[j].plates.size(); i++)
+                {
+                    alpr::AlprPlateResult plate = results[j].plates[i];
+                    if ( plate.topNPlates.size() > 0) {
+                        count_recognize_LP++;
+                        std::string jsonResults = alpr::Alpr::toJson(results[j].plates[i]);
+
+                        if (!PostHTTP(cfg.server, jsonResults)) {
+                            fprintf(stderr, "Fatal: PostHTTP failed.\n");
+                            return EXIT_FAILURE;
+                        }
+                    }
+                }
+            }
+
 
             if ( cfg.gui_enable ) {
                 cv::imshow("video stream", img);
@@ -217,7 +206,7 @@ int main(int argc, char *argv[])
                     return 0;
             }
 
-            float cur_dtime = float(clock() - begin_time) / CLOCKS_PER_SEC;
+            float cur_dtime = float(end_time - begin_time) / CLOCKS_PER_SEC;
             avr_dtime = 0.1 * cur_dtime + 0.9 * avr_dtime;
 
             if ( cfg.verbose_level >= 1 ) {
