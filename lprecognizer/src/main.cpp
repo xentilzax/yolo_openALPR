@@ -127,8 +127,6 @@ int main(int argc, char *argv[])
                 result_vec = detector.detect(img, cfg.yolo_thresh);
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
-                    count_found_LP++;
-
                     bbox_t b = result_vec[i];
                     img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
 
@@ -183,9 +181,12 @@ int main(int argc, char *argv[])
                 }
             }
 
+            count_found_LP = 0;
+            count_recognize_LP = 0;
             for (size_t j = 0; j < results.size(); j++) {
                 for (size_t i = 0; i < results[j].plates.size(); i++)
                 {
+                    count_found_LP++;
                     alpr::AlprPlateResult plate = results[j].plates[i];
                     if ( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
@@ -211,8 +212,8 @@ int main(int argc, char *argv[])
 
             if ( cfg.verbose_level >= 1 ) {
                 std::cout  << "Frames: " << count_images
-                           << " number detect plates: " << count_found_LP
-                           << " number recognize plates: " << count_recognize_LP
+                           << " detected plates: " << count_found_LP
+                           << " recognized plates: " << count_recognize_LP
                            << " Avr.time: " <<  avr_dtime
                            << std::endl;
             }
