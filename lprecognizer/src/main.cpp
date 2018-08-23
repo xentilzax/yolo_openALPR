@@ -74,7 +74,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Detector detector(cfg.yolo_cfg, cfg.yolo_weights);
+    std::shared_ptr<Detector> detector;//(cfg.yolo_cfg, cfg.yolo_weights);
+    if ( cfg.use_yolo_detector ) {
+        detector = std::shared_ptr<Detector>(new Detector(cfg.yolo_cfg, cfg.yolo_weights));
+    }
 
     if ( cfg.gui_enable )
         cv::namedWindow("video stream",cv::WINDOW_NORMAL);
@@ -124,7 +127,7 @@ int main(int argc, char *argv[])
             std::vector<alpr::AlprResults> results;
 
             if ( cfg.use_yolo_detector ) { // use YOLO detector LP
-                result_vec = detector.detect(img, cfg.yolo_thresh);
+                result_vec = detector->detect(img, cfg.yolo_thresh);
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
