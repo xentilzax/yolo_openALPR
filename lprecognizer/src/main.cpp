@@ -92,6 +92,8 @@ int main(int argc, char *argv[])
     cv::VideoCapture capture;
 
     float avr_dtime = 0;
+    float avr_yolo = 0;
+    float avr_alpr = 0;
 
     while (1) {
         if(cfg.camera.empty()) {
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
         while ( capture.isOpened() ) {
             //read the current frame
             clock_t begin_time = clock();
-            clock_t end_time;
+            clock_t end_time, yolo_time, alpr_time;
 
             if(!capture.read(img)) {
                 count_fail_frame++;
@@ -126,11 +128,16 @@ int main(int argc, char *argv[])
             std::vector<alpr::AlprRegionOfInterest> roi_list;
             std::vector<alpr::AlprResults> results;
 
+	    clock_t begin_yolo = clock();
+
             if ( cfg.use_yolo_detector ) { // use YOLO detector LP
                 result_vec = detector->detect(img, cfg.yolo_thresh);
+		yolo_time =clock();
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
+		    //b.w *= 3;
+		    //b.h *= 3;
                     img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
 
                     // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
@@ -138,6 +145,8 @@ int main(int argc, char *argv[])
                     result = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
                     results.push_back(result);
                 }//for
+
+		alpr_time = clock();
 
                 if ( cfg.gui_enable ) {
                     for(size_t i = 0; i < result_vec.size(); i++) {
@@ -187,9 +196,14 @@ int main(int argc, char *argv[])
             count_found_LP = 0;
             count_recognize_LP = 0;
             for (size_t j = 0; j < results.size(); j++) {
+                if ( cfg.use_yolo_detector ) {
+                    count_found_LP++;
+		}
                 for (size_t i = 0; i < results[j].plates.size(); i++)
                 {
-                    count_found_LP++;
+                    if ( !cfg.use_yolo_detector ) {
+                        count_found_LP++;
+                    }
                     alpr::AlprPlateResult plate = results[j].plates[i];
                     if ( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
@@ -214,6 +228,17 @@ int main(int argc, char *argv[])
             avr_dtime = 0.1 * cur_dtime + 0.9 * avr_dtime;
 
             if ( cfg.verbose_level >= 1 ) {
+		if ( cfg.use_yolo_detector ) {
+           		float cur_yolo = float(yolo_time - begin_yolo) / CLOCKS_PER_SEC;
+            		avr_yolo = 0.1 * cur_yolo + 0.9 * avr_yolo;
+
+           		float cur_alpr = float(alpr_time - yolo_time) / CLOCKS_PER_SEC;
+            		avr_alpr = 0.1 * cur_alpr + 0.9 * avr_alpr;
+
+			std::cout  << "yolo time: " << avr_yolo
+				<< " alpr recognize time: " << avr_alpr  
+				<< std::endl;		
+		}
                 std::cout  << "Frames: " << count_images
                            << " detected plates: " << count_found_LP
                            << " recognized plates: " << count_recognize_LP
