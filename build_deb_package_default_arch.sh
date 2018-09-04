@@ -14,7 +14,7 @@ WORKSPACE=$PWD
 
 echo "branch = $BRANCH"
 
-git checkout $BRANCH
+#git checkout $BRANCH
 
 source ./build.sh
 
