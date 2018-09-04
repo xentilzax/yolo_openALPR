@@ -187,9 +187,12 @@ int main(int argc, char *argv[])
             count_found_LP = 0;
             count_recognize_LP = 0;
             for (size_t j = 0; j < results.size(); j++) {
+                count_found_LP++;
                 for (size_t i = 0; i < results[j].plates.size(); i++)
                 {
-                    count_found_LP++;
+                    if ( !cfg.use_yolo_detector ) {
+                        count_found_LP++;
+                    }
                     alpr::AlprPlateResult plate = results[j].plates[i];
                     if ( plate.topNPlates.size() > 0) {
                         count_recognize_LP++;
