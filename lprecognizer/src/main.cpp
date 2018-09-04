@@ -21,16 +21,6 @@ Config cfg;
 //---------------------------------------------------------------------------------------------------------------
 int ParseConfig(const std::string & str, Config & cfg);
 
-
-//---------------------------------------------------------------------------------------------------------------
-//Example run: ./demo cfg/yolov2-tiny-obj.cfg yolo-voc.weights cfg/open_alpr.conf images/1.jpg
-void help()
-{
-    std::cout << "Need setting parameters for run application:" << std::endl;
-    std::cout << "test_app <NN config file> <NN weights file> <open_alpr.conf file> <image file>" << std::endl;
-    exit(1);
-}
-
 //---------------------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
@@ -76,7 +66,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::shared_ptr<Detector> detector;//(cfg.yolo_cfg, cfg.yolo_weights);
+    std::shared_ptr<Detector> detector;
     if ( cfg.use_yolo_detector ) {
         detector = std::shared_ptr<Detector>(new Detector(cfg.yolo_cfg, cfg.yolo_weights));
     }
