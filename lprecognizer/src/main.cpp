@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if ( !cfg.use_yolo_detector ) {
+    if ( cfg.use_yolo_detector ) {
         cfg.open_alpr_cfg = cfg.open_alpr_skip_cfg;
     }
 
@@ -189,9 +189,9 @@ int main(int argc, char *argv[])
                         alpr::AlprPlateResult plate = results[j].plates[i];
                         if( plate.topNPlates.size() > 0) {
                             alpr::AlprPlate candidate = plate.topNPlates[0];
-                            std::cout << "plate " << i << " : " << candidate.characters << std::endl;
+                            std::cout << " plate " << i << " : " << candidate.characters << std::endl;
                         } else {
-                            std::cout << "Not found license plates" << std::endl;
+                            std::cout << " Not found license plates" << std::endl;
                         }
                     }
                 }
