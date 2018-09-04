@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     openalpr.setTopN(5);
     // Optionally, you can provide the library with a region for pattern matching. This improves accuracy by
     // comparing the plate text with the regional pattern.
-    openalpr.setDefaultRegion(cfg.open_alpr_region);
+    // !!!! openalpr.setDefaultRegion(cfg.open_alpr_region);
 
     // Make sure the library loads before continuing.
     // For example, it could fail if the config/runtime_data is not found.
@@ -108,9 +108,6 @@ int main(int argc, char *argv[])
         }
 
         while ( capture.isOpened() ) {
-            //read the current frame
-            clock_t begin_time = clock();
-            clock_t end_time, yolo_time, alpr_time;
 
             if(!capture.read(img)) {
                 count_fail_frame++;
@@ -122,17 +119,27 @@ int main(int argc, char *argv[])
                 }
                 continue;
             }
+while(1) {
+            //read the current frame
+            clock_t begin_time = clock();
+            clock_t end_time, yolo_time, alpr_time, begin_yolo, begin_alpr, end_yolo, end_alpr;
+	    float yolo_cur_dtime = 0;
+	    float alpr_cur_dtime = 0;
+
+
+
             count_images++;
 
             std::vector<bbox_t> result_vec;
             std::vector<alpr::AlprRegionOfInterest> roi_list;
             std::vector<alpr::AlprResults> results;
 
-	    clock_t begin_yolo = clock();
-
             if ( cfg.use_yolo_detector ) { // use YOLO detector LP
+		begin_yolo = clock();
                 result_vec = detector->detect(img, cfg.yolo_thresh);
-		yolo_time =clock();
+		end_yolo =clock();
+		yolo_cur_dtime = float(end_yolo - begin_yolo) / CLOCKS_PER_SEC;
+
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
@@ -142,9 +149,15 @@ int main(int argc, char *argv[])
 
                     // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
                     alpr::AlprResults result;
-                    result = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
+		    begin_alpr = clock();
+                    result = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
+		    end_alpr = clock();
+		    alpr_cur_dtime = float(end_alpr - begin_alpr) / CLOCKS_PER_SEC;
+ 			//result = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
+                   
                     results.push_back(result);
                 }//for
+			
 
 		alpr_time = clock();
 
@@ -156,14 +169,16 @@ int main(int argc, char *argv[])
                 }
             } else { //use Open_ALPR detector LP
                 alpr::AlprResults result;
+		begin_alpr = clock();
                 result = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
+                end_alpr = clock();
+                alpr_cur_dtime = float(end_alpr - begin_alpr) / CLOCKS_PER_SEC;
                 results.push_back(result);
 
                 if ( cfg.gui_enable ) {
                     cv::Point points[4];
                     const cv::Point* pts[1] = {points};
                     int npts[1] = {4};
-
                     for(size_t i = 0; i < result.plates.size(); i++) {
                         for(size_t j = 0; j < 4; j++) {
                             points[j].x = result.plates[i].plate_points[j].x;
@@ -174,7 +189,7 @@ int main(int argc, char *argv[])
                 }
             }//end IF(yolo)
 
-            end_time =clock();
+           end_time =clock(); 
 
             if ( cfg.verbose_level >= 2 ) {
                 for (size_t j = 0; j < results.size(); j++) {
@@ -225,8 +240,8 @@ int main(int argc, char *argv[])
             }
 
             float cur_dtime = float(end_time - begin_time) / CLOCKS_PER_SEC;
-            avr_dtime = 0.1 * cur_dtime + 0.9 * avr_dtime;
-
+            //avr_dtime = 0.1 * cur_dtime + 0.9 * avr_dtime;
+avr_dtime += cur_dtime;
             if ( cfg.verbose_level >= 1 ) {
 		if ( cfg.use_yolo_detector ) {
            		float cur_yolo = float(yolo_time - begin_yolo) / CLOCKS_PER_SEC;
@@ -235,17 +250,22 @@ int main(int argc, char *argv[])
            		float cur_alpr = float(alpr_time - yolo_time) / CLOCKS_PER_SEC;
             		avr_alpr = 0.1 * cur_alpr + 0.9 * avr_alpr;
 
-			std::cout  << "yolo time: " << avr_yolo
-				<< " alpr recognize time: " << avr_alpr  
-				<< std::endl;		
+			/*
+				std::cout  << "yolo time: " << avr_yolo
+				<< " alpr recognize time: " << cur_alpr  
+				<< std::endl;
+			*/
+                        std::cout  << "yolo time: " << yolo_cur_dtime
+				<< " alpr recognize time: " << alpr_cur_dtime  
+				<< std::endl;	
 		}
                 std::cout  << "Frames: " << count_images
                            << " detected plates: " << count_found_LP
                            << " recognized plates: " << count_recognize_LP
-                           << " Avr.time: " <<  avr_dtime
+                           << " Avr.time: " <<  cur_dtime //(avr_dtime / count_images)
                            << std::endl;
             }
-
+}//////////////////////////////
         }//while
         capture.release();
     }
