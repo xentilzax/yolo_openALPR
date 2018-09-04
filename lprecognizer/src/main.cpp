@@ -134,22 +134,19 @@ int main(int argc, char *argv[])
                 end_yolo =clock();
                 yolo_cur_dtime = float(end_yolo - begin_yolo) / CLOCKS_PER_SEC;
 
+                begin_alpr = clock();
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
                     img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
 
                     // Recognize an image file. Alternatively, you could provide the image bytes in-memory.
-                    alpr::AlprResults result;
-                    begin_alpr = clock();
-
+		    alpr::AlprResults result;
                     result = openalpr.recognize((unsigned char*)(img_roi.data), img_roi.channels(), img_roi.cols, img_roi.rows, roi_list);
-
-                    end_alpr = clock();
-                    alpr_cur_dtime = float(end_alpr - begin_alpr) / CLOCKS_PER_SEC;
-
                     results.push_back(result);
                 }//for
+                end_alpr = clock();
+                alpr_cur_dtime = float(end_alpr - begin_alpr) / CLOCKS_PER_SEC;
 
                 if ( cfg.gui_enable ) {
                     for(size_t i = 0; i < result_vec.size(); i++) {
