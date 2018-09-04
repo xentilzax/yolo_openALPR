@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     }
 
     if ( !cfg.use_yolo_detector ) {
-        cfg.open_alpr_cfg = "";
+        cfg.open_alpr_cfg = cfg.open_alpr_skip_cfg;
     }
 
     alpr::Alpr openalpr(cfg.open_alpr_contry, cfg.open_alpr_cfg);
@@ -324,6 +324,11 @@ int ParseConfig(const std::string & str, Config & cfg)
     json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "config");
     if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
         cfg.open_alpr_cfg = json_item->valuestring;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "config_skip_detection");
+    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+        cfg.open_alpr_skip_cfg = json_item->valuestring;
     }
 
     json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "contry");
