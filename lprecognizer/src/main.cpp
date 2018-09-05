@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
                 // and each plate returns the top N candidates.
                 for (size_t i = 0; i < results.plates.size(); i++)
                 {
-                    std::cout << " plate " << i << " : " << results.plates[i].bestPlate.characters << std::endl;
+                    std::cout << " plate_" << i << " : " << results.plates[i].bestPlate.characters << std::endl;
                 }
 
             }
@@ -205,19 +205,20 @@ int main(int argc, char *argv[])
             count_found_LP = results.plates.size();
             count_recognize_LP = 0;
 
-            for (size_t i = 0; i < results.plates.size(); i++)
-            {
-                alpr::AlprPlateResult plate = results.plates[i];
-                if ( plate.topNPlates.size() > 0) {
+            //for (size_t i = 0; i < results.plates.size(); i++)
+            //{
+               // alpr::AlprPlateResult plate = results.plates[i];
+                if ( results.plates.size() > 0) {
                     count_recognize_LP++;
-                    std::string jsonResults = alpr::Alpr::toJson(results.plates[i]);
+                    //std::string jsonResults = alpr::Alpr::toJson(results);
+		    std::string jsonResults = ResultToJsonString(results, img, roi_list, 0);
 
                     if (!PostHTTP(cfg.server, jsonResults)) {
                         fprintf(stderr, "Fatal: PostHTTP failed.\n");
                         return EXIT_FAILURE;
                     }
                 }
-            }
+            //}
 
 
             if ( cfg.gui_enable ) {
@@ -270,7 +271,7 @@ int main(int argc, char *argv[])
   },
 
   "http_server": "http://jsonplaceholder.typicode.com/posts",
-  "camera": "rtsp://admin:epsilon957@10.42.0.247",
+  "camera": "rtsp://10.42.0.247",
   "gui": 0
 }
 */
@@ -476,7 +477,6 @@ std::string ResultToJsonString(const Inex::Results & results,
                                const std::vector<Inex::RegionOfInterest> & roi_list,
                                unsigned int camera_id)
 {
-    static unsigned int id = 0;
     cJSON * json_root = cJSON_CreateObject();
 
     cJSON_AddItemToObject(json_root, "version", cJSON_CreateNumber(VERSION));
@@ -533,16 +533,14 @@ std::string ResultToJsonString(const Inex::Results & results,
         cJSON_AddItemToObject(json_item_array, "vehicle_region", json_vehicle_region);
 
         cJSON * json_candidates = cJSON_CreateArray();
-        for (size_t k = 0; k < 4; k++) {
+        for (size_t k = 0; k < results.plates[j].topNPlates.size(); k++) {
             cJSON * json_item = cJSON_CreateObject();
             cJSON_AddItemToObject(json_item, "plate", cJSON_CreateString( results.plates[j].topNPlates[k].characters.c_str() ));
             cJSON_AddItemToObject(json_item, "confidence", cJSON_CreateNumber( results.plates[j].topNPlates[k].overall_confidence));
             cJSON_AddItemToObject(json_item, "matches_template", cJSON_CreateBool( results.plates[j].topNPlates[k].overall_confidence));
             cJSON_AddItemToArray(json_candidates, json_item);
         }
-        cJSON_AddItemToObject(json_item_array, "coordinates", json_coords);
-
-        cJSON_AddItemToObject(json_item_array, "id", cJSON_CreateNumber(id));
+        cJSON_AddItemToObject(json_item_array, "candidates", json_candidates);
 
         cJSON_AddItemToArray(json_results, json_item_array);
     }
@@ -557,8 +555,6 @@ std::string ResultToJsonString(const Inex::Results & results,
     std::string str = cJSON_Print(json_root);
 
     cJSON_Delete(json_root);
-
-    id++;
 
     return str;
 }
