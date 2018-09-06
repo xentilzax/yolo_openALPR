@@ -205,21 +205,17 @@ int main(int argc, char *argv[])
             count_found_LP = results.plates.size();
             count_recognize_LP = 0;
 
-            //for (size_t i = 0; i < results.plates.size(); i++)
-            //{
-               // alpr::AlprPlateResult plate = results.plates[i];
-                if ( results.plates.size() > 0) {
-                    count_recognize_LP++;
-                    //std::string jsonResults = alpr::Alpr::toJson(results);
-		    std::string jsonResults = ResultToJsonString(results, img, roi_list, 0);
 
-                    if (!PostHTTP(cfg.server, jsonResults)) {
-                        fprintf(stderr, "Fatal: PostHTTP failed.\n");
-                        return EXIT_FAILURE;
-                    }
+            if ( results.plates.size() > 0) {
+                count_recognize_LP++;
+                //std::string jsonResults = alpr::Alpr::toJson(results);
+                std::string jsonResults = ResultToJsonString(results, img, roi_list, 0);
+
+                if (!PostHTTP(cfg.server, jsonResults)) {
+                    fprintf(stderr, "Fatal: PostHTTP failed.\n");
+                    return EXIT_FAILURE;
                 }
-            //}
-
+            }
 
             if ( cfg.gui_enable ) {
                 cv::imshow("video stream", img);
@@ -458,8 +454,7 @@ end:
       "confidence": 81.39118957519531,
       "matches_template": 0
     }
-  ],
-  "id": 101
+  ]
 }
   ],
   "uuid": "unspecified-cam16488027-1490574589596",
