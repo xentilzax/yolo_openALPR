@@ -14,10 +14,15 @@ public:
     std::string open_alpr_contry = "us";
     std::string open_alpr_region = "md";
     std::string server = "http://jsonplaceholder.typicode.com/posts";
-    std::string camera = "";
+    std::string path = "";
+    std::string camera_url = "";
+    std::string camera_id = "A";
     int gui_enable = 0;
     int verbose_level = 0;
     float yolo_thresh;
+
+    unsigned int min_size_free_space = 100; //minimal free space on disk (Mb)
+    unsigned int max_event_number = 1000;
 };
 
 extern Config cfg;

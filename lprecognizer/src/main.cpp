@@ -1,8 +1,10 @@
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <iomanip> 
 #include <streambuf>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
@@ -24,6 +26,11 @@ namespace Inex
 {
 typedef alpr::AlprResults Results;
 typedef alpr::AlprRegionOfInterest RegionOfInterest;
+typedef struct {
+    std::string imagePath;
+    std::string textPath;
+    unsigned long long timeLabel;
+} Event;
 }
 //---------------------------------------------------------------------------------------------------------------
 
@@ -34,7 +41,11 @@ int ParseConfig(const std::string & str, Config & cfg);
 std::string ResultToJsonString(const Inex::Results & results,
                                const cv::Mat & img,
                                const std::vector<Inex::RegionOfInterest> & roi_list,
-                               unsigned int camera_id);
+                               const std::string & camera_id,
+                               const std::string & uuid);
+bool SaveImage(const std::string & path, std::string & name, cv::Mat & img, const std::string & jsonText, int64_t time_id);
+bool CheckExitsAndMakeDir(const std::string & file);
+bool ControlDiskSpace(const std::string & path);
 
 //---------------------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
@@ -62,6 +73,9 @@ int main(int argc, char *argv[])
         curl_global_cleanup();
         return EXIT_FAILURE;
     }
+
+    if( !ControlDiskSpace(cfg.path) )
+        return -1;
 
     if ( cfg.use_yolo_detector ) {
         cfg.open_alpr_cfg = cfg.open_alpr_skip_cfg;
@@ -103,14 +117,14 @@ int main(int argc, char *argv[])
     float avr_alpr = 0;
 
     while (1) {
-        if(cfg.camera.empty()) {
+        if(cfg.camera_url.empty()) {
             capture.open(0);
         } else {
-            capture.open(cfg.camera);
+            capture.open(cfg.camera_url);
         }
 
         if ( !capture.isOpened() ) {
-            std::cerr << "Error: Can't open video stream from: " << cfg.camera << std::endl;
+            std::cerr << "Error: Can't open video stream from: " << cfg.camera_url << std::endl;
             return -1;
         }
 
@@ -169,7 +183,6 @@ int main(int argc, char *argv[])
                     }
                 }
             } else { //use Open_ALPR detector LP
-
                 begin_alpr = clock();
                 results = openalpr.recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
                 end_alpr = clock();
@@ -208,8 +221,14 @@ int main(int argc, char *argv[])
 
             if ( results.plates.size() > 0) {
                 count_recognize_LP++;
+                std::string uuid = std::string(SITE_ID) + "-cam" + cfg.camera_id + "-" + std::to_string(results.epoch_time);
+                std::string img_filename = uuid;
                 //std::string jsonResults = alpr::Alpr::toJson(results);
-                std::string jsonResults = ResultToJsonString(results, img, roi_list, 0);
+                std::string jsonResults = ResultToJsonString(results, img, roi_list, cfg.camera_id, uuid);
+
+                if( !SaveImage(cfg.path, img_filename, img, jsonResults, results.epoch_time) ) {
+                    results.error = true;
+                }
 
                 if (!PostHTTP(cfg.server, jsonResults)) {
                     fprintf(stderr, "Fatal: PostHTTP failed.\n");
@@ -249,6 +268,350 @@ int main(int argc, char *argv[])
         }//while
         capture.release();
     }
+}
+
+
+//---------------------------------------------------------------------------------------------------------------
+bool SaveImage(const std::string & path, std::string & name, cv::Mat & img, const std::string & jsonText, int64_t time_id)
+{
+    //    time_t t = time(NULL);
+    time_t t = static_cast<time_t>(time_id/1000);
+
+    std::tm tm = *std::localtime(&t);
+
+    if ( !CheckExitsAndMakeDir(path)) { std::cerr << "Can't open dir: " << path << std::endl; return false;}
+
+    std::string year = std::to_string(tm.tm_year + 1900);
+    std::string month = std::to_string(tm.tm_mon + 1);
+    std::string day = std::to_string(tm.tm_mday);
+    std::string hour = std::to_string(tm.tm_hour);
+
+    std::string yaer_dir = path + "/" + year;
+    if ( !CheckExitsAndMakeDir(yaer_dir)) { std::cerr << "Can't open dir: " << yaer_dir << std::endl; return false;}
+
+    std::string month_dir = yaer_dir + "/" + month;
+    if ( !CheckExitsAndMakeDir(month_dir)) { std::cerr << "Can't open dir: " << month_dir << std::endl; return false;}
+
+    std::string day_dir = month_dir + "/" + day;
+    if ( !CheckExitsAndMakeDir(day_dir)) { std::cerr << "Can't open dir: " << day_dir << std::endl; return false;}
+
+    std::string hour_dir = day_dir + "/" + hour;
+    if ( !CheckExitsAndMakeDir(hour_dir)) { std::cerr << "Can't open dir: " << hour_dir << std::endl; return false;}
+    if ( !CheckExitsAndMakeDir(hour_dir + "/img")) { std::cerr << "Can't open dir: " << (hour_dir + "/img") << std::endl; return false;}
+    if ( !CheckExitsAndMakeDir(hour_dir + "/txt")) { std::cerr << "Can't open dir: " << (hour_dir + "/txt") << std::endl; return false;}
+    //save image
+    std::string nameImg = hour_dir + "/img/" + name + ".jpg";
+    cv::imwrite(nameImg, img);
+    //save json to text file
+    std::string nameJson = hour_dir + "/txt/" + name + ".txt";
+    std::ofstream out(nameJson);
+    out << jsonText;
+    out.close();
+
+    name = nameImg;
+
+    return true;
+}
+
+
+//---------------------------------------------------------------------------------------------------------------
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+
+int GetDir (const std::string & dir, std::vector<std::string> & files)
+{
+    DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir(dir.c_str())) == NULL) {
+        std::cout << "Error(" << errno << ") opening " << dir << std::endl;
+        return errno;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+        std::string filename(dirp->d_name);
+        if(filename == "." || filename == "..")
+            continue;
+        files.push_back(filename);
+    }
+    closedir(dp);
+    return 0;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+#include <sys/stat.h>
+#include <iostream>
+
+bool IsExists(const std::string & file)
+{
+    struct stat buf;
+    return (stat(file.c_str(), &buf) == 0);
+}
+
+bool MakeDir(const std::string & dir)
+{
+    const int dir_err = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (-1 == dir_err) {
+        std::cerr << "Error: Can't create dir: " << dir << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool CheckExitsAndMakeDir(const std::string & dir)
+{
+    if ( !IsExists( dir )) {
+        std::cout << "Create dir: " << dir << std::endl;
+        if ( !MakeDir( dir )) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+std::vector<std::string> SplitPath(
+        const std::string & str,
+        const std::set<char> delimiters)
+{
+    std::vector<std::string> result;
+
+    char const* pch = str.c_str();
+    char const* start = pch;
+    for(; *pch; ++pch)
+    {
+        if (delimiters.find(*pch) != delimiters.end())
+        {
+            if (start != pch)
+            {
+                std::string str(start, pch);
+                result.push_back(str);
+            }
+            else
+            {
+                result.push_back("");
+            }
+            start = pch + 1;
+        }
+    }
+    result.push_back(start);
+
+    return result;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+unsigned long long GetTimeEvent(const std::string & s)
+{
+    static std::set<char> delims{'\\','/','.','-'};
+    std::vector<std::string> path = SplitPath(s, delims);
+
+    if(path.size() > 2) {
+        return std::stoul(path[path.size() - 2]);
+    } else return 0;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+bool GetListEvents(const std::string & path, std::vector<Inex::Event> & events)
+{
+    static std::set<char> delims{'.'};
+    std::vector<std::string> year_list;
+
+    if( GetDir(path, year_list) != 0 )
+        return false;
+
+    for(const std::string & year: year_list) {
+        std::vector<std::string> mon_list;
+        std:: string path_year = path + "/" + year;
+        if( GetDir(path_year, mon_list) != 0 )
+            return false;
+
+        for(const std::string & month: mon_list) {
+            std::vector<std::string> day_list;
+            std:: string path_mon = path_year + "/" + month;
+            if( GetDir(path_mon, day_list) != 0 )
+                return false;
+
+            for(const std::string & day: day_list) {
+                std::vector<std::string> hour_list;
+                std:: string path_day = path_mon + "/" + day;
+                if( GetDir(path_day, hour_list) != 0 )
+                    return false;
+
+                for(const std::string & hour: hour_list) {
+                    std::vector<std::string> file_list;
+                    std:: string path_hour = path_day + "/" + hour + "/img";
+                    if( GetDir(path_hour, file_list) != 0 )
+                        return false;
+
+                    for(const std::string & file: file_list) {
+                        std::vector<std::string> paths = SplitPath(file, delims);
+                        std::string filename;
+                        if(paths.size() == 2) {
+                            filename = paths[paths.size() - 2];
+                        } else
+                            return false;
+
+                        Inex::Event event;
+                        event.imagePath = path_day + "/" + hour + "/img/" + file;
+                        event.textPath = path_day + "/" + hour + "/txt/" + filename + ".txt";
+                        event.timeLabel = GetTimeEvent(event.imagePath);
+                        events.push_back(event);
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+bool DeleteEmptyDir(const std::string & path)
+{
+    std::vector<std::string> year_list;
+
+    if( GetDir(path, year_list) != 0 )
+        return false;
+
+    bool isChanged = true;
+
+    while(isChanged) {
+        isChanged = false;
+
+        for(const std::string & year: year_list) {
+            std::vector<std::string> mon_list;
+            std:: string path_year = path + "/" + year;
+            if( GetDir(path_year, mon_list) != 0 )
+                return false;
+
+            if( mon_list.empty()) {
+                if( remove(path_year.c_str()) != 0 ) std::cerr << "Error deleting file " << path_year << std::endl;
+                isChanged = true;
+            }
+
+            for(const std::string & month: mon_list) {
+                std::vector<std::string> day_list;
+                std:: string path_mon = path_year + "/" + month;
+                if( GetDir(path_mon, day_list) != 0 )
+                    return false;
+
+                if( day_list.empty()) {
+                    if( remove(path_mon.c_str()) != 0 ) std::cerr << "Error deleting file " << path_mon << std::endl;
+                    isChanged = true;
+                }
+
+                for(const std::string & day: day_list) {
+                    std::vector<std::string> hour_list;
+                    std:: string path_day = path_mon + "/" + day;
+                    if( GetDir(path_day, hour_list) != 0 )
+                        return false;
+
+                    if( hour_list.empty()) {
+                        if( remove(path_day.c_str()) != 0 ) std::cerr << "Error deleting file " << path_day << std::endl;
+                        isChanged = true;
+                    }
+
+                    for(const std::string & hour: hour_list) {
+                        std::vector<std::string> file_list;
+                        std::string path_hour = path_day + "/" + hour;
+                        std::string path_img = path_hour + "/img";
+                        std::string path_txt = path_hour + "/txt";
+                        if( GetDir(path_hour, file_list) != 0 )
+                            return false;
+
+                        if( file_list.empty()) {
+                            if( remove(path_txt.c_str()) != 0 ) std::cerr << "Error deleting file " << path_txt << std::endl;
+                            if( remove(path_img.c_str()) != 0 ) std::cerr << "Error deleting file " << path_img << std::endl;
+                            if( remove(path_hour.c_str()) != 0 ) std::cerr << "Error deleting file " << path_hour << std::endl;
+                            isChanged = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+bool DeleteOlderEvents(std::vector<Inex::Event> & events, int count)
+{
+    //sort events by time mark
+    std::sort(events.begin(), events.end(), [](const Inex::Event & a, const Inex::Event & b) { return a.timeLabel > b.timeLabel; });
+
+    //    std::cout << "--------------- Events -------------" << std::endl;
+    //    for(const Inex::Event & event : events) {
+    //        std::cout << event.imagePath << std::endl;
+    //    }
+    //    std::cout << "------------------------------------" << std::endl;
+
+
+    //delete older events
+    if( count > 0) {
+        for(size_t i = events.size() - 1; i >= events.size() - count; i--) {
+            if( remove(events[i].imagePath.c_str()) != 0 )
+                std::cerr << "Error deleting file " << events[i].imagePath << std::endl;
+            if( remove(events[i].textPath.c_str()) != 0 )
+                std::cerr << "Error deleting file " << events[i].textPath << std::endl;
+        }
+
+        events.resize(events.size() - count);
+    } else {
+        events.resize(events.size() - 1);
+    }
+
+    return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+#include <sys/statvfs.h>
+
+bool GetSizeFreeDiskSpace(const std::string & path, unsigned long long * freeSz)
+{
+    struct statvfs statFS;
+
+    if( statvfs(path.c_str(), &statFS) != 0 ) {
+        return false;
+    }
+
+    *freeSz = statFS.f_bsize * statFS.f_bavail;//f_bfree;
+    *freeSz /= 1024 * 1024;
+
+    return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+bool ControlDiskSpace(const std::string & path)
+{
+    bool res = true;
+    std::vector<Inex::Event> events;
+    unsigned long long freeSz;
+
+    res &= GetListEvents(path, events);
+    res &= GetSizeFreeDiskSpace(path, &freeSz);
+
+    if(cfg.verbose_level > 0) {
+        std::cout << "free space: " << freeSz << std::endl;
+        std::cout << "number events: " << events.size() << std::endl;
+    }
+
+    while( freeSz < cfg.min_size_free_space || events.size() > cfg.max_event_number ) {
+
+        DeleteOlderEvents(events, events.size() - cfg.max_event_number);
+
+        res &= GetSizeFreeDiskSpace(path, &freeSz);
+
+        if(cfg.verbose_level > 0) {
+            std::cout << "free space: " << freeSz << std::endl;
+            std::cout << "number events: " << events.size() << std::endl;
+        }
+    }
+
+    res &= DeleteEmptyDir(path);
+
+    return res;
 }
 
 //---------------------------------------------------------------------------------------------------------------
@@ -339,9 +702,33 @@ int ParseConfig(const std::string & str, Config & cfg)
         cfg.server = json_item->valuestring;
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json, "camera");
+    json_sub = cJSON_GetObjectItemCaseSensitive(json, "disk");
+    if (json_sub == NULL)
+        goto end;
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "path_to_save");
     if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.camera = json_item->valuestring;
+        cfg.path = json_item->valuestring;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "max_event_number");
+    if (cJSON_IsNumber(json_item)) {
+        cfg.max_event_number = json_item->valueint;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "min_size_free_space");
+    if (cJSON_IsNumber(json_item)) {
+        cfg.min_size_free_space = json_item->valueint;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json, "camera_url");
+    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+        cfg.camera_url = json_item->valuestring;
+    }
+
+    json_item = cJSON_GetObjectItemCaseSensitive(json, "camera_id");
+    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+        cfg.camera_id = json_item->valuestring;
     }
 
     json_item = cJSON_GetObjectItemCaseSensitive(json, "gui");
@@ -470,7 +857,8 @@ end:
 std::string ResultToJsonString(const Inex::Results & results,
                                const cv::Mat & img,
                                const std::vector<Inex::RegionOfInterest> & roi_list,
-                               unsigned int camera_id)
+                               const std::string & camera_id,
+                               const std::string & uuid)
 {
     cJSON * json_root = cJSON_CreateObject();
 
@@ -541,10 +929,8 @@ std::string ResultToJsonString(const Inex::Results & results,
     }
     cJSON_AddItemToObject(json_root, "results", json_results);
 
-    std::string uuid = std::string(SITE_ID) + "-cam" + std::to_string(camera_id) + "-" + std::to_string(results.epoch_time);
-
     cJSON_AddItemToObject(json_root, "uuid", cJSON_CreateString( uuid.c_str() ));
-    cJSON_AddItemToObject(json_root, "camera_id", cJSON_CreateString( std::to_string(camera_id).c_str() ));
+    cJSON_AddItemToObject(json_root, "camera_id", cJSON_CreateString(camera_id.c_str() ));
     cJSON_AddItemToObject(json_root, "site_id", cJSON_CreateString( SITE_ID ));
 
     std::string str = cJSON_Print(json_root);
