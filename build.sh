@@ -3,7 +3,7 @@ set -eux
 
 cd ./darknet
 make clean
-make -j4
+make -j5
 cd ../lprecognizer
 make clean
 make
@@ -19,3 +19,4 @@ cp -r ./lprecognizer/unregister_service.sh ./build/
 
 cp ./darknet/nn.so ./build/
 cp ./lprecognizer/lprecognizer ./build/
+cp ./lprecognizer/diskmanager ./build/

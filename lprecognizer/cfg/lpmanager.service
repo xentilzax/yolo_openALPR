@@ -1,0 +1,11 @@
+[Unit]
+Description=Inex license plates disk manager
+
+[Service]
+User=root
+WorkingDirectory=/opt/inex/lprecognizer
+ExecStart=/opt/inex/lprecognizer/diskmanager
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

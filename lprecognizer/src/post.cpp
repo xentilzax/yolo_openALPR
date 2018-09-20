@@ -23,7 +23,7 @@ size_t ignore_output( void *ptr, size_t size, size_t nmemb, void *stream)
 name and value must be UTF-8 strings.
 Returns TRUE on success, FALSE on failure.
 */
-int PostHTTP(const std::string & url, const std::string & json)
+int PostHTTP(const std::string & url, const std::string & json, int verbose_level)
 {
     int retcode = FALSE;
     CURL *curl = NULL;
@@ -70,7 +70,7 @@ int PostHTTP(const std::string & url, const std::string & json)
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 
 
-    if ( cfg.verbose_level < 3 )
+    if ( verbose_level < 3 )
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &ignore_output);
 
     res = curl_easy_perform(curl);
