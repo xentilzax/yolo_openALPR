@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
                 begin_alpr = clock();
 
 		time_t t = time(NULL);
-                results.epoch_time = static_cast<int64_t>(t);
+                results.epoch_time = static_cast<int64_t>(t)*1000;
 
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
