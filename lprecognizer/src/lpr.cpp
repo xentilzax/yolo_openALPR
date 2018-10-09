@@ -156,6 +156,7 @@ int main(int argc, char *argv[])
 
                 begin_alpr = clock();
 
+                results.epoch_time = static_cast<int64_t>(begin_alpr);
                 for(size_t i = 0; i < result_vec.size(); i++) {
                     bbox_t b = result_vec[i];
                     img(cv::Rect(b.x, b.y, b.w, b.h)).copyTo(img_roi);
