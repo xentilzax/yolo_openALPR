@@ -11,7 +11,7 @@
 
 //---------------------------------------------------------------------------------------------------------------
 
-Inex::Config cfg;
+IZ::Config cfg;
 
 //---------------------------------------------------------------------------------------------------------------
 bool ControlDiskSpace(const std::string & path);
@@ -111,7 +111,7 @@ unsigned long long GetTimeEvent(const std::string & s)
 }
 
 //---------------------------------------------------------------------------------------------------------------
-bool GetListEvents(const std::string & path, std::vector<Inex::Event> & events)
+bool GetListEvents(const std::string & path, std::vector<IZ::Event> & events)
 {
     static std::set<char> delims{'.'};
     std::vector<std::string> date_list;
@@ -146,7 +146,7 @@ bool GetListEvents(const std::string & path, std::vector<Inex::Event> & events)
                         return false;
                     }
 
-                    Inex::Event evn;
+                    IZ::Event evn;
                     evn.imagePath = path_event + "/" + file_name + ".jpg";
                     evn.textPath = path_event + "/" + file_name + ".txt";
                     evn.timeLabel = GetTimeEvent(evn.imagePath);
@@ -215,13 +215,13 @@ bool DeleteEmptyDir(const std::string & path)
 }
 
 //---------------------------------------------------------------------------------------------------------------
-bool DeleteOlderEvents(std::vector<Inex::Event> & events, int count)
+bool DeleteOlderEvents(std::vector<IZ::Event> & events, int count)
 {
     //sort events by time mark
-    std::sort(events.begin(), events.end(), [](const Inex::Event & a, const Inex::Event & b) { return a.timeLabel > b.timeLabel; });
+    std::sort(events.begin(), events.end(), [](const IZ::Event & a, const IZ::Event & b) { return a.timeLabel > b.timeLabel; });
 
     //    std::cout << "--------------- Events -------------" << std::endl;
-    //    for(const Inex::Event & event : events) {
+    //    for(const IZ::Event & event : events) {
     //        std::cout << event.imagePath << std::endl;
     //    }
     //    std::cout << "------------------------------------" << std::endl;
@@ -265,7 +265,7 @@ bool GetSizeFreeDiskSpace(const std::string & path, unsigned long long * freeSz)
 bool ControlDiskSpace(const std::string & path)
 {
     bool res = true;
-    std::vector<Inex::Event> events;
+    std::vector<IZ::Event> events;
     unsigned long long freeSz;
 
     res &= GetListEvents(path, events);

@@ -1,8 +1,13 @@
 #pragma once
 
 #include <string>
-
-namespace Inex
+#include "open_alpr_module.hpp"
+#include "yolo_detector.hpp"
+#include "move_detector.hpp"
+#include "simple_motion.hpp"
+#include "disk_adapter.hpp"
+#include "socket_adapter.hpp"
+namespace IZ
 {
 
 //---------------------------------------------------------------------------------------------------------------
@@ -13,28 +18,35 @@ typedef struct {
 } Event;
 
 //---------------------------------------------------------------------------------------------------------------
-class Config
+class Conveer
 {
 public:
+    std::string motionDetectorName;
+    std::vector<std::string> motionDetectorAdapters;
+    std::string detectorName;
+    std::vector<std::string> detectorAdapters;
+    std::string recognizerName;
+    std::vector<std::string> recognizerAdapters;
+};
+
+//---------------------------------------------------------------------------------------------------------------
+class Config :
+        public ALPR_Config,
+        public YOLO_Config,
+        public MoveDetector_Config,
+        public SimpleMotion_Config,
+        public DiskAdapter_Config,
+        public SocketAdapter_Config
+{
+public:
+    Conveer conveer;
+
     int use_yolo_detector = 1;
-    std::string yolo_cfg = "cfg/ishta_sp5.cfg";
-    std::string yolo_weights = "weights/ishta_sp5.weights";
-    std::string open_alpr_cfg = "cfg/open_alpr.conf";
-    std::string open_alpr_skip_cfg = "cfg/open_alpr.conf";
-    std::string open_alpr_contry = "us";
-    std::string open_alpr_region = "md";
-    std::string server = "http://jsonplaceholder.typicode.com/posts";
-    std::string path = "";
     std::string camera_url = "";
     std::string camera_id = "A";
     std::string camera_type = "default";
     int gui_enable = 0;
     int verbose_level = 0;
-    float yolo_thresh;
-
-    unsigned int min_size_free_space = 100; //minimal free space on disk (Mb)
-    unsigned int max_event_number = 1000;
-    unsigned int removal_period_minutes = 10;
 };
 
 //---------------------------------------------------------------------------------------------------------------

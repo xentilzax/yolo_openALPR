@@ -3,4 +3,4 @@
 #include "common.hpp"
 #include "cJSON.h"
 
-int ParseConfig(const std::string & str, Inex::Config & cfg);
+int ParseConfig(const std::string & str, IZ::Config & cfg);

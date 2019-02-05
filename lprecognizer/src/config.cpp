@@ -1,118 +1,149 @@
 #include "config.hpp"
 
-using namespace Inex;
+using namespace IZ;
 
 //---------------------------------------------------------------------------------------------------------------
-/*
-{
-  "yolo":
-  {
-      "neuralnet_config": "cfg/tiny_onebbox.cfg",
-      "weights": "weights/tiny_onebbox_hik.weights",
-      "threshold": 0.5
-  },
-
-  "open_alpr":
-  {
-      "config": "cfg/open_alpr.conf",
-  },
-
-  "http_server": "http://jsonplaceholder.typicode.com/posts",
-  "camera": "rtsp://10.42.0.247",
-  "gui": 0
-}
-*/
-
 int ParseConfig(const std::string & str, Config & cfg)
 {
     int status = 0;
     cJSON* json;
     cJSON* json_sub;
     cJSON* json_item;
+    cJSON* json_arr;
+    cJSON* json_recognizers;
+    cJSON* json_detectors;
+    cJSON* json_motion;
+    cJSON* json_savers;
+    cJSON* json_conveer;
 
     json = cJSON_Parse(str.c_str());
     if (json == NULL)
         goto end;
 
-    //YOLO
-    json_sub = cJSON_GetObjectItemCaseSensitive(json, "yolo");
-    if (json_sub == NULL)
+    //order load config sections impotant for Open_ALPR module!!!!
+    json_recognizers = cJSON_GetObjectItemCaseSensitive(json, "recognizers");
+    if (json_recognizers == NULL)
         goto end;
+    {
+        //Open_ALPR
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_recognizers, "open_alpr");
+        if (json_sub == NULL)
+            goto end;
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "neuralnet_config");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.yolo_cfg = json_item->valuestring;
+        ALPR_Module::ParseConfig(json_sub, cfg);
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "weights");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.yolo_weights = json_item->valuestring;
-    }
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "threshold");
-    if (cJSON_IsNumber(json_item)) {
-        cfg.yolo_thresh = json_item->valuedouble;
-    }
-
-    //Open_ALPR
-    json_sub = cJSON_GetObjectItemCaseSensitive(json, "open_alpr");
-    if (json_sub == NULL)
+    json_detectors = cJSON_GetObjectItemCaseSensitive(json, "detectors");
+    if (json_detectors == NULL)
         goto end;
+    {
+        //YOLO
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_detectors, "yolo");
+        if (json_sub == NULL)
+            goto end;
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "config");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.open_alpr_cfg = json_item->valuestring;
+        YOLO_Detector::ParseConfig(json_sub, cfg);
+
+        //Open_ALPR
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_detectors, "open_alpr");
+        if (json_sub == NULL)
+            goto end;
+
+        ALPR_Module::ParseConfig(json_sub, cfg);
+
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "config_skip_detection");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.open_alpr_skip_cfg = json_item->valuestring;
+    json_motion = cJSON_GetObjectItemCaseSensitive(json, "motion_detectors");
+    if (json_motion == NULL)
+        goto end;
+    {
+        //SIMPLE
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_motion, "simple");
+        if (json_sub == NULL)
+            goto end;
+        {
+
+        }
+        SimpleMotion::ParseConfig(json_sub, cfg);
+
+        //MoveDetector
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_motion, "background_substruction");
+        if (json_sub == NULL)
+            goto end;
+
+        MoveDetector::ParseConfig(json_sub, cfg);
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "contry");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.open_alpr_contry = json_item->valuestring;
+    json_savers = cJSON_GetObjectItemCaseSensitive(json, "save_data_adapters");
+    if (json_savers == NULL)
+        goto end;
+    {
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_savers, "disk_adapter");
+        if (json_sub == NULL)
+            goto end;
+
+        DiskAdapter::ParseConfig(json_sub, cfg);
+
+        json_sub = cJSON_GetObjectItemCaseSensitive(json_savers, "socket_adapter");
+        if (json_sub == NULL)
+            goto end;
+
+        SocketAdapter::ParseConfig(json_sub, cfg);
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "region");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.open_alpr_region = json_item->valuestring;
-    }
+    json_conveer = cJSON_GetObjectItemCaseSensitive(json, "conveer");
+    if (json_motion == NULL)
+        goto end;
+    {
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "motion_detector_name");
+        if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+            cfg.conveer.motionDetectorName = json_item->valuestring;
+        }
 
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "motion_detector_adapters");
+        if (cJSON_IsArray(json_item)) {
+            for(int i = 0; i < cJSON_GetArraySize(json_item); i++) {
+                json_arr = cJSON_GetArrayItem(json_item, i);
+                json_sub = cJSON_GetObjectItemCaseSensitive(json_arr, "name");
+                if (cJSON_IsString(json_sub) && (json_sub->valuestring != NULL)) {
+                    cfg.conveer.motionDetectorAdapters.push_back(json_sub->valuestring);
+                }
+            }
+        }
+
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "detector_name");
+        if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+            cfg.conveer.detectorName = json_item->valuestring;
+        }
+
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "detector_adapters");
+        if (cJSON_IsArray(json_item)) {
+            for(int i = 0; i < cJSON_GetArraySize(json_item); i++) {
+                json_arr = cJSON_GetArrayItem(json_item, i);
+                json_sub = cJSON_GetObjectItemCaseSensitive(json_arr, "name");
+                if (cJSON_IsString(json_sub) && (json_sub->valuestring != NULL)) {
+                    cfg.conveer.detectorAdapters.push_back(json_sub->valuestring);
+                }
+            }
+        }
+
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "recognizer_name");
+        if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
+            cfg.conveer.recognizerName = json_item->valuestring;
+        }
+
+        json_item = cJSON_GetObjectItemCaseSensitive(json_conveer, "recognizer_adapters");
+        if (cJSON_IsArray(json_item)) {
+            for(int i = 0; i < cJSON_GetArraySize(json_item); i++) {
+                json_arr = cJSON_GetArrayItem(json_item, i);
+                json_sub = cJSON_GetObjectItemCaseSensitive(json_arr, "name");
+                if (cJSON_IsString(json_sub) && (json_sub->valuestring != NULL)) {
+                    cfg.conveer.recognizerAdapters.push_back(json_sub->valuestring);
+                }
+            }
+        }
+    }
     //LP Recognazer
-    json_item = cJSON_GetObjectItemCaseSensitive(json, "use_yolo_detector");
-    if (cJSON_IsNumber(json_item)) {
-        cfg.use_yolo_detector = json_item->valueint;
-    }
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json, "http_server");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.server = json_item->valuestring;
-    }
-
-    json_sub = cJSON_GetObjectItemCaseSensitive(json, "disk");
-    if (json_sub == NULL)
-        goto end;
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "path_to_save");
-    if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
-        cfg.path = json_item->valuestring;
-    }
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "max_event_number");
-    if (cJSON_IsNumber(json_item)) {
-        cfg.max_event_number = json_item->valueint;
-    }
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "min_size_free_space");
-    if (cJSON_IsNumber(json_item)) {
-        cfg.min_size_free_space = json_item->valueint;
-    }
-
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "removal_period_minutes");
-    if (cJSON_IsNumber(json_item)) {
-        cfg.removal_period_minutes = json_item->valueint;
-    }
 
     json_item = cJSON_GetObjectItemCaseSensitive(json, "camera_url");
     if (cJSON_IsString(json_item) && (json_item->valuestring != NULL)) {
