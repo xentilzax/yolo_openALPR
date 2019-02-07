@@ -136,8 +136,7 @@ endif
 OBJS = $(addprefix $(OBJDIR), $(OBJ))
 DEPS = $(wildcard src/*.h) Makefile
 
-all: obj backup results $(LIBNAMESO) 
-#$(EXEC) $ $(APPNAMESO)
+all: obj backup results $(LIBNAMESO) $(EXEC) $ $(APPNAMESO)
 
 ifeq ($(LIBSO), 1) 
 CFLAGS+= -fPIC
@@ -146,8 +145,8 @@ $(LIBNAMESO): $(OBJS) src/yolo_v2_class.hpp src/yolo_v2_class.cpp
 	$(CPP) -shared -std=c++11 -fvisibility=hidden -DYOLODLL_EXPORTS $(COMMON) $(CFLAGS) $(OBJS) src/yolo_v2_class.cpp -o $@ $(LDFLAGS)
 endif
 
-#$(EXEC): $(OBJS)
-#	$(CPP) $(COMMON) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+$(EXEC): $(OBJS)
+	$(CPP) $(COMMON) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(OBJDIR)%.o: %.c $(DEPS)
 	$(CC) $(COMMON) $(CFLAGS) -c $< -o $@
@@ -168,6 +167,5 @@ results:
 .PHONY: clean
 
 clean:
-	rm -rf $(OBJS) $(LIBNAMESO) *.so
-	#$(EXEC)
+	rm -rf $(OBJS) $(EXEC) $(LIBNAMESO) *.so
 

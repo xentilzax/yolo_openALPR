@@ -7,18 +7,36 @@ DEBUG = 0
 CPP=g++
 CC=gcc
 
-LPR_SRC=src/lpr.cpp src/post.cpp src/cJSON.c src/config.cpp
-LPR_OBJ=$(LPR_SRC:.cpp=.o)
+LPR_SRC=src/lpr.cpp src/cJSON.cpp src/config.cpp src/move_detector.cpp src/open_alpr_module.cpp src/simple_motion.cpp src/socket_adapter.cpp src/disk_adapter.cpp src/yolo_detector.cpp
+#LPR_OBJ=$(LPR_SRC:.cpp=.o)
+LPR_OBJ=src/lpr.o src/cJSON.o src/config.o
 LPR_EXE=lprecognizer
 
-DM_SRC=src/dm.cpp src/cJSON.c src/config.cpp
+DM_SRC=src/dm.cpp src/cJSON.cpp src/config.cpp
 DM_OBJ=$(DM_SRC:.cpp=.o)
 DM_EXE=diskmanager
 
-OPTS=-Ofast
-COMMON_LDFLAGS= -lm -pthread
-LPR_LDFLAGS= $(COMMON_LDFLAGS) -L../darknet -l:nn.so -l:libopenalpr.so
+WRAP_ALPR_LIB=inex_alpr.so
+MOTION_DETECTOR_LIB=inex_motion.so
+SIMPLE_DETECTOR_LIB=inex_simple.so
+DISK_ADAPTER_LIB=inex_disk.so
+SOCKET_ADAPTER_LIB=inex_socket.so
+YOLO_DETECTOR_LIB=inex_yolo.so
 
+COMMON_LDFLAGS= -lm -pthread
+LPR_LDFLAGS= $(COMMON_LDFLAGS)
+
+#add OpenALPR module
+ALPR_LDFLAGS= -L. -l:$(WRAP_ALPR_LIB) -l:libopenalpr.so 
+LPR_LDFLAGS+= $(ALPR_LDFLAGS) 
+
+#add service modules
+LPR_LDFLAGS+= -L. -l:$(MOTION_DETECTOR_LIB) -l:$(DISK_ADAPTER_LIB) -l:$(SOCKET_ADAPTER_LIB) -l:$(SIMPLE_DETECTOR_LIB)
+
+#add YOLO module
+LPR_LDFLAGS+= -L. -l:$(YOLO_DETECTOR_LIB) -L../darknet -l:nn.so 
+
+OPTS=-Ofast
 COMMON= -std=c++11
 CFLAGS= -Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas 
 CFLAGS+=$(OPTS)
@@ -34,7 +52,6 @@ CURL_LDFLAGS+= `pkg-config --libs libcurl`
 
 #OpenCV
 ifeq ($(OPENCV), 1) 
-#COMMON+= -DOPENCV
 CFLAGS+= -DOPENCV
 ifeq ($(OPENCV3), 1) 
 OCV_LDFLAGS = \
@@ -53,8 +70,6 @@ OCV_LDFLAGS = \
 endif
 endif
 
-#LDFLAGS+= `pkg-config --libs opencv` 
-#COMMON+= `pkg-config --cflags opencv` 
 
 DEPS = $(wildcard src/*.hpp) Makefile
 
@@ -62,28 +77,42 @@ CFLAGS+= -fPIC
 LPR_LDFLAGS+= -Wl,-rpath='$$ORIGIN'
 INCLUDES=-I /usr/include -I ../darknet/src -I ./src
 
-all: $(LPR_SRCS) $(LPR_EXE) $(DM_EXE)
-	 
+
+all:$(YOLO_DETECTOR_LIB) $(SOCKET_ADAPTER_LIB) $(DISK_ADAPTER_LIB) $(MOTION_DETECTOR_LIB) $(SIMPLE_DETECTOR_LIB) $(WRAP_ALPR_LIB) $(LPR_EXE) $(DM_EXE)
+# all: $(LPR_EXE) $(DM_EXE)
+
+# $(LIBNAMESO): $(OBJS) src/yolo_v2_class.hpp src/yolo_v2_class.cpp
+# 	$(CPP) -shared -std=c++11 -fvisibility=hidden -DYOLODLL_EXPORTS $(COMMON) $(CFLAGS) $(OBJS) src/yolo_v2_class.cpp -o $@ $(LDFLAGS)
+$(YOLO_DETECTOR_LIB): src/yolo_detector.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+
+$(SOCKET_ADAPTER_LIB): src/socket_adapter.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+
+$(DISK_ADAPTER_LIB): src/disk_adapter.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+
+$(SIMPLE_DETECTOR_LIB): src/simple_motion.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+	
+$(MOTION_DETECTOR_LIB): src/move_detector.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+
+$(WRAP_ALPR_LIB): src/open_alpr_module.o 
+	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
+
 $(LPR_EXE): $(LPR_OBJ) 
-	$(CPP) $(LPR_OBJ) -o $@ $(COMMON) $(CURL_LDFLAGS) $(OCV_LDFLAGS) $(LPR_LDFLAGS)
+	$(CPP) $(LPR_OBJ) -o $@ $(COMMON) $(CFLAGS) $(CURL_LDFLAGS) $(OCV_LDFLAGS) $(LPR_LDFLAGS)
 	
-$(DM_EXE): $(DM_OBJ) 
-	$(CPP) $(DM_OBJ) -o $@ $(COMMON) $(COMMON_LDFLAGS)
-	
-src/cJSON.o: src/cJSON.c 
-	$(CC) $(OPTS) -c src/cJSON.c -o $@ 
-	
-src/post.o: src/post.cpp 
-	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/post.cpp -o $@
+#$(DM_EXE): $(DM_OBJ) 
+#	$(CPP) $(DM_OBJ) -o $@ $(COMMON)
 
-src/config.o: src/config.cpp 
-	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/config.cpp -o $@ 
 
-src/lpr.o: src/lpr.cpp
-	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/lpr.cpp -o $@
+src/%.o: src/%.cpp
+	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c -o $@ $^
 	
-src/dm.o: src/dm.cpp
-	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/dm.cpp -o $@
+# src/dm.o: src/dm.cpp
+# 	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c src/dm.cpp -o $@
 
 clean:
 	rm -rf src/*.o $(LPR_EXE) $(DM_EXE)
