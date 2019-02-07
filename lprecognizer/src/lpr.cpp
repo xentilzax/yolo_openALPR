@@ -82,16 +82,16 @@ int main(int argc, char *argv[])
         return 0x0B;
     }
 
-//    if(curl_global_init(CURL_GLOBAL_ALL)) {
-//        fprintf(stderr, "Fatal: The initialization of libcurl has failed.\n");
-//        return EXIT_FAILURE;
-//    }
+    //    if(curl_global_init(CURL_GLOBAL_ALL)) {
+    //        fprintf(stderr, "Fatal: The initialization of libcurl has failed.\n");
+    //        return EXIT_FAILURE;
+    //    }
 
-//    if(atexit(curl_global_cleanup)) {
-//        fprintf(stderr, "Fatal: atexit failed to register curl_global_cleanup.\n");
-//        curl_global_cleanup();
-//        return EXIT_FAILURE;
-//    }
+    //    if(atexit(curl_global_cleanup)) {
+    //        fprintf(stderr, "Fatal: atexit failed to register curl_global_cleanup.\n");
+    //        curl_global_cleanup();
+    //        return EXIT_FAILURE;
+    //    }
 
 
     ConveerImpl conveer;
@@ -175,6 +175,16 @@ int main(int argc, char *argv[])
             conveer.detector->Detection(eventsMotion, eventsDetection);
 
             detectorTime = system_clock::now();
+
+            if ( cfg.conveer.motionDetectorName ==  "simple") {
+                std::vector<IZ::EventObjectDetection> copyEventsDetection;
+                for(const auto & e : eventsDetection) {
+                    if( !e.detectedObjects.empty() ) {
+                        copyEventsDetection.push_back(e);
+                    }
+                }
+                eventsDetection = copyEventsDetection;
+            }
 
             for(auto adapter :conveer.motionDetectorAdapters) {
                 adapter->SaveEvent(eventsDetection);
