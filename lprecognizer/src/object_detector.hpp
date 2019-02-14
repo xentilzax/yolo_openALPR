@@ -26,14 +26,21 @@ public:
     Shape border;
     float confdenceDetection;
     cv::Mat croppedFrame;
+
+    void GenerateJson(cJSON *jsonObject, const std::string & imgFilename) const;
 };
 
 class EventObjectDetection :public EventMotionDetection
 {
 public:
     EventObjectDetection(const EventMotionDetection & e)
-        :EventMotionDetection(e) {}
-    virtual ~EventObjectDetection(){}
+        :EventMotionDetection(e)
+    {}
+    virtual ~EventObjectDetection() {}
+
+    void SaveImages(const std::string & eventDir) const;
+    void GenerateJson(cJSON *jsonItem) const;
+    std::string FileNameGenerator(int k) const;
 
     std::vector<ResultDetection> detectedObjects;
 };

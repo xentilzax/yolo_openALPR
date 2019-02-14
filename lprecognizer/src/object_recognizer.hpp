@@ -13,29 +13,33 @@ public:
     bool matchesTemplate;
 };
 
-class ResultRecognition :public ResultDetection
+class ResultRecognition
 {
 public:
-    ResultRecognition(const ResultDetection & rd)
-        :ResultDetection(rd) {}
+    ResultRecognition() {}
+
+    void GenerateJson(cJSON *jsonItemr) const;
 
     bool recognized;
-
     /// the best plate is the topNPlate with the highest confidence
     Plate bestPlate;
-
     /// A list of possible plate number permutations
     std::vector<Plate> topNPlates;
+
 };
 
-class EventObjectRecognize :public EventMotionDetection
+class EventObjectRecognize :public EventObjectDetection
 {
 public:
 
     EventObjectRecognize(const EventObjectDetection & e)
-        :EventMotionDetection(reinterpret_cast<const EventMotionDetection &>(e)) {}
+        :EventObjectDetection(e)
+    {}
 
-    virtual ~EventObjectRecognize(){}
+    virtual ~EventObjectRecognize() {}
+
+    void SaveImages(const std::string & eventDir) const;
+    void GenerateJson(cJSON *jsonItemr) const;
 
    std::vector<ResultRecognition> recognizedObjects;
 };

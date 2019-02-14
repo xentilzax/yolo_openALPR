@@ -26,7 +26,6 @@ SimpleMotion::SimpleMotion(cJSON* json)
     ParseConfig(json, cfg);
 }
 
-
 //-------------------------------------------------------------------------------------
 void SimpleMotion::Detection(const cv::Mat & input,
                              int64_t timestamp,
