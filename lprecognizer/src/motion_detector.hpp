@@ -10,32 +10,74 @@
 
 namespace IZ {
 
+#define ERROR_JSON_TEXT "Can't create cJSON item"
 
-class EventBase
-{
-    int64_t timestamp;
-
-    virtual void SaveImages(const std::string & eventDir) const = 0;
-    virtual void GenerateJson(cJSON *jsonItem) const = 0;
-};
-
-class EventMotionDetection :public EventBase
+//-------------------------------------------------------------------------------------
+class EventSerializer
 {
 public:
-    virtual ~EventMotionDetection(){}
+    EventSerializer()
+        : dataAllReadySaved(false) {}
+    virtual ~EventSerializer() {}
+    virtual void SaveImages(const std::string & path) = 0;
+    virtual cJSON * GenerateJson() const = 0;
+
+protected:
+    bool dataAllReadySaved;
+};
+
+//-------------------------------------------------------------------------------------
+class Result :public EventSerializer
+{
+public:
+    virtual ~Result() {}
+    virtual bool IsEmpty() const = 0;
+};
+
+//-------------------------------------------------------------------------------------
+class Event :public EventSerializer
+{
+public:
+    virtual ~Event() {}
+    virtual int64_t GetTimestamp() const = 0;
+
+    std::vector<std::shared_ptr<Result> > arrayResults;
+};
+
+//-------------------------------------------------------------------------------------
+class ResultMotion :public Result
+{
+public:
+    int64_t timestamp;
     cv::Mat frame;
 
-    void SaveImages(const std::string & eventDir) const;
-    void GenerateJson(cJSON *jsonItem) const;
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
+    bool IsEmpty() const {return false;}
     std::string FileNameGenerator() const;
 };
 
+//-------------------------------------------------------------------------------------
+class EventMotionDetection :public Event
+{
+public:
+    EventMotionDetection()
+        :Event() {}
+    EventMotionDetection(const Event* e)
+        :Event(*e) {}
+
+    virtual ~EventMotionDetection() {}
+
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
+    int64_t GetTimestamp() const;
+};
+
+//-------------------------------------------------------------------------------------
 class MotionDetector
 {
 public:
-    virtual ~MotionDetector(){}
-    virtual void Detection(const cv::Mat & input,
-                           int64_t timestamp,
-                           std::vector<EventMotionDetection> & result) = 0;
+    virtual ~MotionDetector() {}
+    virtual std::shared_ptr<IZ::Event> Detection(const cv::Mat & input, int64_t timestamp) = 0;
 };
 }

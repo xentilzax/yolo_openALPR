@@ -15,7 +15,7 @@ public:
     float yolo_thresh;
 };
 
-class YOLO_Detector :public IZ::ObjectDetector
+class YOLO_Detector :public ObjectDetector
 {
 public:
     YOLO_Detector(const YOLO_Config & cfg);
@@ -24,7 +24,7 @@ public:
 
     void Init();
     static void ParseConfig(cJSON* json, YOLO_Config & cfg);
-    void Detection(const std::vector<IZ::EventMotionDetection> & events, std::vector<IZ::EventObjectDetection> & results);
+    void Detection(std::shared_ptr<Event> & event);
 
     YOLO_Config cfg;
     std::shared_ptr<Detector> yolo;

@@ -1,11 +1,19 @@
 #pragma once
 
 #include <string>
+#include <atomic>         // std::atomic
+#include <queue>          // std::queue
+#include <memory>
+#include <thread>
+#include <mutex>
+
 #include "cJSON.h"
 #include "save_adapter.hpp"
+#include "disk_cleaner.hpp"
 
 namespace IZ {
 
+//-------------------------------------------------------------------------------------
 class DiskAdapter_Config
 {
 public:
@@ -15,26 +23,69 @@ public:
     unsigned int removal_period_minutes = 10;
 };
 
+
+//-------------------------------------------------------------------------------------
+//Singlton
+class SavingThread
+{
+    DiskAdapter_Config cfg;
+    std::atomic<bool> enableWorking;
+    std::thread savingThread;
+    DiskCleaner diskCleaner;
+
+
+    static SavingThread* ptrThis;
+
+
+    SavingThread(const DiskAdapter_Config & conf)
+        : cfg(conf)
+        , enableWorking(true)
+        , savingThread(Saving, this)
+        , diskCleaner(conf)
+    {}
+
+    void MakeEventFolder(const std::shared_ptr<Event> event, std::string & eventDir);
+
+public:
+    static SavingThread* Create(const DiskAdapter_Config & conf)
+    {
+        if(ptrThis == nullptr ) {
+            ptrThis = new SavingThread(conf);
+        }
+        return ptrThis;
+    }
+
+
+    virtual ~SavingThread()
+    {
+        enableWorking = false;
+        savingThread.join();
+        ptrThis = nullptr;
+    }
+
+    static std::mutex mutexSave;
+    static std::queue <std::shared_ptr<Event> > queueEvents;
+    static void Saving(SavingThread* ptr);
+    static bool QueueIsEmpty(std::shared_ptr<Event> & event);
+};
+
+//-------------------------------------------------------------------------------------
 class DiskAdapter :public SaveAdapter
 {
+
 public:
     DiskAdapter(const DiskAdapter_Config & conf)
-        :cfg(conf){}
+    {
+        localPtr = std::shared_ptr<SavingThread>(SavingThread::Create(conf));
+    }
 
     ~DiskAdapter() {}
-    void SaveEvent(std::vector<EventMotionDetection> & event);
-    void SaveEvent(std::vector<EventObjectDetection> & event);
-    void SaveEvent(std::vector<EventObjectRecognize> & event);
 
+    void SaveEvent(std::shared_ptr<Event> event);
     static void ParseConfig(cJSON* json_sub, DiskAdapter_Config & cfg);
-    DiskAdapter_Config cfg;
 
 private:
-    void MotionDetectorJsonGenerator(const EventObjectDetection & e, cJSON *jsonItem, const std::string & eventDir, bool saveImages);
-    void ObjectsDetectorJsonGenerator(const EventObjectDetection & e, cJSON *detectedObjects, const std::string & eventDir, bool saveImages);
-    void ObjectDetectorJsonGenerator(const ResultDetection & r, const std::string & imgFilename, cJSON *jsonObject);
-    void ObjectsRecognizerJsonGenerator(const EventObjectRecognize & e, cJSON *detectedObjects, const std::string & eventDir);
-    template <class T> void MakeEventFolder(const std::vector<T> & event, std::string & eventDir);
+    std::shared_ptr<SavingThread> localPtr;
 };
 
 }

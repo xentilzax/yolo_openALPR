@@ -38,9 +38,7 @@ public:
     ~MoveDetector(){}
 
     static void ParseConfig(cJSON* json_sub, MoveDetector_Config & cfg);
-    void Detection(const cv::Mat & img,
-                   int64_t time,
-                   std::vector<EventMotionDetection> & result);
+    std::shared_ptr<IZ::Event> Detection(const cv::Mat & input, int64_t timestamp);
 
     MoveDetector_Config cfg;
 
@@ -52,8 +50,8 @@ public:
     bool fStartDetected;
     bool fResult;
 
-    std::vector<EventMotionDetection> endDetectionFrame;
-    std::vector<EventMotionDetection> startDetectionFrame;
+    std::vector<ResultMotion> endDetectionFrame;
+    std::vector<ResultMotion> startDetectionFrame;
     cv::Mat thresh;
     cv::Mat mask;
     cv::Mat delta;

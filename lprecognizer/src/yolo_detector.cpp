@@ -44,47 +44,56 @@ void YOLO_Detector::Init()
 
 
 //-----------------------------------------------------------------------------------------------------
-void YOLO_Detector::Detection(const std::vector<IZ::EventMotionDetection> & events,
-                              std::vector<IZ::EventObjectDetection> & results)
+void YOLO_Detector::Detection(std::shared_ptr<IZ::Event> & event)
 {
-    for(size_t k = 0; k < events.size(); k++) {
-        cv::Mat img = events[k].frame;
+    std::shared_ptr<EventObjectDetection> eventObjectDetection = std::make_shared<EventObjectDetection>(event.get());
+
+    for(size_t k = 0; k < eventObjectDetection->arrayResults.size(); k++) {
+
+        cv::Mat img = std::dynamic_pointer_cast<ResultMotion>(eventObjectDetection->arrayResults[k])->frame;
         std::vector<bbox_t> result_vec;
+
         result_vec = yolo->detect(img, cfg.yolo_thresh);
 
-        EventObjectDetection eventObjectDetection(events[k]);
+        std::shared_ptr<ResultDetection> rd =
+                std::make_shared<ResultDetection>(
+                    new ResultDetection(
+                        std::dynamic_pointer_cast<ResultMotion>(
+                            eventObjectDetection->arrayResults[k]).get()));
 
         for(size_t i = 0; i < result_vec.size(); i++) {
             bbox_t b = result_vec[i];
-            ResultDetection rd;
+            std::shared_ptr<DataDetection> data = std::make_shared<DataDetection>(rd.get(), i);
 
             cv::Point point;
             point.x = b.x;
             point.y = b.y;
-            rd.border.points.push_back(point);
+            data->border.points.push_back(point);
 
             point.x = b.x + b.w;
             point.y = b.y;
-            rd.border.points.push_back(point);
+            data->border.points.push_back(point);
 
             point.x = b.x + b.w;
             point.y = b.y + b.h;
-            rd.border.points.push_back(point);
+            data->border.points.push_back(point);
 
             point.x = b.x;
             point.y = b.y + b.h;
-            rd.border.points.push_back(point);
+            data->border.points.push_back(point);
 
-            rd.confdenceDetection = b.prob;
+            data->confdenceDetection = b.prob;
 
             cv::Rect roi(b.x, b.y, b.w, b.h);
-            img(roi).copyTo(rd.croppedFrame);
+            img(roi).copyTo(data->croppedFrame);
 
-            eventObjectDetection.detectedObjects.push_back(rd);
+            rd->objectData.push_back(data);
         }
 
-        results.push_back(eventObjectDetection);
+        eventObjectDetection->arrayResults[k] = std::static_pointer_cast<Result>(rd);
     }
+
+    event = std::static_pointer_cast<Event>(eventObjectDetection);
 }
 
 

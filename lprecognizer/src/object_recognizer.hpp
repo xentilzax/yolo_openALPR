@@ -5,6 +5,7 @@
 
 namespace IZ{
 
+//-------------------------------------------------------------------------------------
 class Plate
 {
 public:
@@ -13,42 +14,44 @@ public:
     bool matchesTemplate;
 };
 
-class ResultRecognition
+//-------------------------------------------------------------------------------------
+class DataRecognition :public DataDetection
 {
 public:
-    ResultRecognition() {}
+    DataRecognition(const DataDetection* parent)
+        :DataDetection(*parent) {}
 
-    void GenerateJson(cJSON *jsonItemr) const;
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
 
     bool recognized;
     /// the best plate is the topNPlate with the highest confidence
     Plate bestPlate;
     /// A list of possible plate number permutations
     std::vector<Plate> topNPlates;
-
 };
 
+//-------------------------------------------------------------------------------------
 class EventObjectRecognize :public EventObjectDetection
 {
 public:
 
-    EventObjectRecognize(const EventObjectDetection & e)
+    EventObjectRecognize(const Event* e)
         :EventObjectDetection(e)
     {}
 
     virtual ~EventObjectRecognize() {}
 
-    void SaveImages(const std::string & eventDir) const;
-    void GenerateJson(cJSON *jsonItemr) const;
-
-   std::vector<ResultRecognition> recognizedObjects;
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
 };
 
+//-------------------------------------------------------------------------------------
 class LicensePlateRecognizer
 {
 public:
-    virtual ~LicensePlateRecognizer(){}
-    virtual void Recognize(std::vector<EventObjectDetection> & events, std::vector<EventObjectRecognize> & result) = 0;
+    virtual ~LicensePlateRecognizer() {}
+    virtual void Recognize(std::shared_ptr<Event> & event) = 0;
 };
 
 }

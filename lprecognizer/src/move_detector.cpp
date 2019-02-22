@@ -16,6 +16,13 @@ MoveDetector::MoveDetector(const MoveDetector_Config & conf)
     countFrameDetection = 0;
     endDetectionFrame.resize(cfg.bs_number_last_frame_detection);
     startDetectionFrame.resize(cfg.bs_number_first_frame_detection);
+
+//    for(int i = 0; i < cfg.bs_number_last_frame_detection; i++) {
+//        endDetectionFrame[i] = std::make_shared<ResultMotion>();
+//    }
+//    for(int i = 0; i < cfg.bs_number_first_frame_detection; i++) {
+//        startDetectionFrame[i] = std::make_shared<ResultMotion>();
+//    }
 }
 
 //-------------------------------------------------------------------------------------
@@ -98,11 +105,12 @@ void MoveDetector::ParseConfig(cJSON* json_sub, MoveDetector_Config & cfg)
 }
 
 //-------------------------------------------------------------------------------------
-void MoveDetector::Detection(const cv::Mat & img,
-                             int64_t timestamp,
-                             std::vector<EventMotionDetection> & result)
+std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t timestamp)
 {
-    assert(img.cols > 0 && img.rows > 0);
+    if(img.cols <= 0 || img.rows <= 0)
+        throw std::runtime_error("wrong image size");
+
+    std::shared_ptr<IZ::Event> result = std::make_shared<EventMotionDetection>();
 
     int new_h = img.rows * cfg.bs_work_width_frame / img.cols;
     cv::Size sz(cfg.bs_work_width_frame, new_h);
@@ -178,7 +186,9 @@ void MoveDetector::Detection(const cv::Mat & img,
 
     if( fStartDetected == true && fDetected == false ) {
         for(int i = 0; i < cfg.bs_number_first_frame_detection; i++) {
-            result.push_back(startDetectionFrame[i]);
+
+            result->arrayResults.push_back(std::shared_ptr<Result>(
+                                               new ResultMotion(startDetectionFrame[i])));
         }
 
         if( cfg.bs_number_last_frame_detection < countFrameDetection ) {
@@ -191,7 +201,8 @@ void MoveDetector::Detection(const cv::Mat & img,
             while( n < 0 ) {
                 n += cfg.bs_number_last_frame_detection;
             }
-            result.push_back(endDetectionFrame[n]);
+            result->arrayResults.push_back(std::shared_ptr<Result>(
+                                               new ResultMotion(endDetectionFrame[n])));
         }
 
         fResult = true;
@@ -221,4 +232,6 @@ void MoveDetector::Detection(const cv::Mat & img,
         startDetectionIndex = 0;
         countFrameDetection = 0;
     }
+
+    return result;
 }

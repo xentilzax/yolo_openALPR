@@ -21,9 +21,10 @@ public:
     ~SimpleMotion(){}
 
     static void ParseConfig(cJSON* json_sub, SimpleMotion_Config & cfg);
-    void Detection(const cv::Mat & input, int64_t timestamp, std::vector<EventMotionDetection> & result);
+    std::shared_ptr<IZ::Event> Detection(const cv::Mat & input, int64_t timestamp);
 
     SimpleMotion_Config cfg;
+    unsigned int skipedFrames = 0;
 };
 
 }

@@ -1,15 +1,35 @@
 OPENCV=1
 OPENCV3=1
 
-DEBUG = 0
+DEBUG = 1
 
 
 CPP=g++
 CC=gcc
 
-LPR_SRC=src/lpr.cpp src/cJSON.cpp src/config.cpp src/move_detector.cpp src/open_alpr_module.cpp src/simple_motion.cpp src/socket_adapter.cpp src/disk_adapter.cpp src/yolo_detector.cpp
-#LPR_OBJ=$(LPR_SRC:.cpp=.o)
-LPR_OBJ=src/lpr.o src/cJSON.o src/config.o
+LPR_SRC=src/lpr.cpp \
+	src/cJSON.cpp \
+	src/config.cpp \
+	src/move_detector.cpp \
+	src/open_alpr_module.cpp \
+	src/simple_motion.cpp \
+	src/socket_adapter.cpp \
+	src/disk_adapter.cpp \
+	src/yolo_detector.cpp \
+	src/motion_detector.cpp \
+	src/object_detector.cpp \
+	src/object_recognizer.cpp \
+	src/disk_cleaner.cpp
+	
+COMMON_OBJ=	src/motion_detector.o \
+		src/object_detector.o \
+		src/object_recognizer.o
+		
+LPR_OBJ=src/lpr.o \
+	src/cJSON.o \
+	src/config.o 
+
+	
 LPR_EXE=lprecognizer
 
 DM_SRC=src/dm.cpp src/cJSON.cpp src/config.cpp
@@ -83,25 +103,25 @@ all:$(YOLO_DETECTOR_LIB) $(SOCKET_ADAPTER_LIB) $(DISK_ADAPTER_LIB) $(MOTION_DETE
 
 # $(LIBNAMESO): $(OBJS) src/yolo_v2_class.hpp src/yolo_v2_class.cpp
 # 	$(CPP) -shared -std=c++11 -fvisibility=hidden -DYOLODLL_EXPORTS $(COMMON) $(CFLAGS) $(OBJS) src/yolo_v2_class.cpp -o $@ $(LDFLAGS)
-$(YOLO_DETECTOR_LIB): src/yolo_detector.o 
+$(YOLO_DETECTOR_LIB): src/yolo_detector.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 
-$(SOCKET_ADAPTER_LIB): src/socket_adapter.o 
+$(SOCKET_ADAPTER_LIB): src/socket_adapter.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 
-$(DISK_ADAPTER_LIB): src/disk_adapter.o 
+$(DISK_ADAPTER_LIB): src/disk_adapter.o src/disk_cleaner.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 
-$(SIMPLE_DETECTOR_LIB): src/simple_motion.o 
+$(SIMPLE_DETECTOR_LIB): src/simple_motion.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 	
-$(MOTION_DETECTOR_LIB): src/move_detector.o 
+$(MOTION_DETECTOR_LIB): src/move_detector.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 
-$(WRAP_ALPR_LIB): src/open_alpr_module.o 
+$(WRAP_ALPR_LIB): src/open_alpr_module.o $(COMMON_OBJ)
 	$(CPP) -shared  $(COMMON) $(CFLAGS) $^ -o $@
 
-$(LPR_EXE): $(LPR_OBJ) 
+$(LPR_EXE): $(LPR_OBJ) $(COMMON_OBJ)
 	$(CPP) $(LPR_OBJ) -o $@ $(COMMON) $(CFLAGS) $(CURL_LDFLAGS) $(OCV_LDFLAGS) $(LPR_LDFLAGS)
 	
 #$(DM_EXE): $(DM_OBJ) 

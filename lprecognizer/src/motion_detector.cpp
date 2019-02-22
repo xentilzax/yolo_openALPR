@@ -2,33 +2,75 @@
 
 using namespace IZ;
 
-std::string EventMotionDetection::FileNameGenerator() const
+//const std::string ERROR_JSON_TEXT("Can't create cJSON item");
+
+//-------------------------------------------------------------------------------------
+void EventMotionDetection::SaveImages(const std::string & eventDir)
 {
-    return std::to_string(e.timestamp) + ".jpg";
+    for(std::shared_ptr<Result> r: arrayResults) {
+        r->SaveImages(eventDir);
+    }
 }
 
 //-------------------------------------------------------------------------------------
-void EventMotionDetection::SaveImages(const std::string & eventDir) const
+cJSON* EventMotionDetection::GenerateJson() const
 {
-    std::string imgFilename = eventDir + "/" + FileNameGenerator();
+    cJSON * json = cJSON_CreateArray();
+    for(std::shared_ptr<Result> r: arrayResults) {
+        cJSON *jsonItem = r->GenerateJson();
+        cJSON_AddItemToArray(json, jsonItem);
+    }
 
-    if(saveImages) {
-        if( !cv::imwrite(imgFilename, e.frame) ) {
-            throw std::runtime_error("Can't write file: " + imgFilename);
+    return json;
+}
+
+int64_t EventMotionDetection::GetTimestamp() const
+{
+    if(arrayResults.empty()) {
+        return 0;
+    }
+
+    int64_t minTimestamp = std::dynamic_pointer_cast<ResultMotion>(arrayResults[0])->timestamp;
+    for(std::shared_ptr<Result> item: arrayResults) {
+        std::shared_ptr<ResultMotion> result = std::dynamic_pointer_cast<ResultMotion>(item);
+        if(result->timestamp < minTimestamp) {
+            minTimestamp = result->timestamp;
         }
     }
+    return minTimestamp;
+}
+//-------------------------------------------------------------------------------------
+std::string ResultMotion::FileNameGenerator() const
+{
+    return std::to_string(timestamp) + ".jpg";
 }
 
 //-------------------------------------------------------------------------------------
-void EventMotionDetection::GenerateJson(cJSON *jsonItem) const
+void ResultMotion::SaveImages(const std::string & eventDir)
 {
-    std::string imgFilename = FileNameGenerator();
+    if(!dataAllReadySaved) {
+        std::string imgFilename = eventDir + "/" + FileNameGenerator();
 
-    if( cJSON_AddNumberToObject(jsonItem, "timestamp", e.timestamp) == NULL) {
-        throw std::runtime_error(errorJsonText);
+        if( !cv::imwrite(imgFilename, frame) ) {
+            throw std::runtime_error("Can't write file: " + imgFilename);
+        }
+
+    }
+    dataAllReadySaved = true;
+}
+
+//-------------------------------------------------------------------------------------
+cJSON* ResultMotion::GenerateJson() const
+{
+    cJSON *jsonItem = cJSON_CreateObject();
+
+    if( cJSON_AddNumberToObject(jsonItem, "timestamp", timestamp) == NULL) {
+        throw std::runtime_error(ERROR_JSON_TEXT);
     }
 
-    if( cJSON_AddStringToObject(jsonItem, "frame", imgFilename.c_str()) == NULL) {
-        throw std::runtime_error(errorJsonText);
+    if( cJSON_AddStringToObject(jsonItem, "frame", FileNameGenerator().c_str()) == NULL) {
+        throw std::runtime_error(ERROR_JSON_TEXT);
     }
+
+    return jsonItem;
 }

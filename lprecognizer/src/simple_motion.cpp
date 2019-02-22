@@ -27,12 +27,18 @@ SimpleMotion::SimpleMotion(cJSON* json)
 }
 
 //-------------------------------------------------------------------------------------
-void SimpleMotion::Detection(const cv::Mat & input,
-                             int64_t timestamp,
-                             std::vector<EventMotionDetection> & result)
+std::shared_ptr<IZ::Event> SimpleMotion::Detection(const cv::Mat & input, int64_t timestamp)
 {
-    EventMotionDetection event;
-    event.frame = input;
-    event.timestamp = timestamp;
-    result.push_back(event);
+    std::shared_ptr<EventMotionDetection> result = std::make_shared<EventMotionDetection>();
+    if(skipedFrames < cfg.simple_skip_frames) {
+        skipedFrames++;
+    } else {
+        std::shared_ptr<ResultMotion> rm( new ResultMotion());
+        rm->frame = input;
+        rm->timestamp = timestamp;
+        result->arrayResults.push_back(std::static_pointer_cast<Result>(rm));
+        skipedFrames = 0;
+    }
+
+    return result;
 }

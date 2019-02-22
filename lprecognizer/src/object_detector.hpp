@@ -5,6 +5,7 @@
 
 namespace IZ{
 
+//-------------------------------------------------------------------------------------
 class Shape
 {
 public:
@@ -20,36 +21,74 @@ public:
     std::vector<cv::Point> points;
 };
 
-class ResultDetection
+//-------------------------------------------------------------------------------------
+class DataObject :public EventSerializer
 {
 public:
+    virtual ~DataObject() {}
+};
+
+//-------------------------------------------------------------------------------------
+class ResultDetection :public ResultMotion
+{
+public:
+    ResultDetection(const ResultMotion *parent)
+        : ResultMotion(*parent) {}
+    virtual ~ResultDetection() {}
+
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
+    bool IsEmpty() const
+    {
+        return objectData.empty();
+    }
+
+    std::vector<std::shared_ptr<DataObject> > objectData;
+};
+
+//-------------------------------------------------------------------------------------
+class DataDetection :public DataObject
+{
+public:
+    DataDetection(const ResultDetection* parent, int index)
+        : DataObject()
+    {
+        fileName = std::to_string(parent->timestamp) + "-" + std::to_string(index) + ".jpg";
+    }
+    virtual ~DataDetection() {}
+
     Shape border;
     float confdenceDetection;
     cv::Mat croppedFrame;
 
-    void GenerateJson(cJSON *jsonObject, const std::string & imgFilename) const;
+    void SaveImages(const std::string & eventDir);
+    cJSON* GenerateJson() const;
+    std::string FileNameGenerator() const;
+
+private:
+    std::string fileName;
 };
 
+//-------------------------------------------------------------------------------------
 class EventObjectDetection :public EventMotionDetection
 {
 public:
-    EventObjectDetection(const EventMotionDetection & e)
+    EventObjectDetection(const Event* e)
         :EventMotionDetection(e)
     {}
+
     virtual ~EventObjectDetection() {}
 
-    void SaveImages(const std::string & eventDir) const;
-    void GenerateJson(cJSON *jsonItem) const;
-    std::string FileNameGenerator(int k) const;
-
-    std::vector<ResultDetection> detectedObjects;
+    void SaveImages(const std::string & eventDir);
+    cJSON * GenerateJson() const;
 };
 
+//-------------------------------------------------------------------------------------
 class ObjectDetector
 {
 public:
-    virtual ~ObjectDetector(){}
-    virtual void Detection(const std::vector<EventMotionDetection> & events, std::vector<EventObjectDetection> & results) = 0;
+    virtual ~ObjectDetector() {}
+    virtual void Detection(std::shared_ptr<IZ::Event> & event) = 0;
 };
 
 }

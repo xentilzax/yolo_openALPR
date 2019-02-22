@@ -28,8 +28,8 @@ public:
 
     void Init();
     static void ParseConfig(cJSON* json, ALPR_Config & cfg);
-    void Detection(const std::vector<IZ::EventMotionDetection> & events, std::vector<IZ::EventObjectDetection> & results);
-    void Recognize(std::vector<IZ::EventObjectDetection> & events, std::vector<IZ::EventObjectRecognize> & result);
+    void Detection(std::shared_ptr<Event> & event);
+    void Recognize(std::shared_ptr<Event> & event);
 
     ALPR_Config cfg;
 

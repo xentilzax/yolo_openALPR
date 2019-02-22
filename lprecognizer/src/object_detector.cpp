@@ -4,59 +4,54 @@ using namespace IZ;
 
 
 //-------------------------------------------------------------------------------------
-std::string EventObjectDetection::FileNameGenerator(int k) const
-{
-    return std::to_string(e.timestamp) + "-" + std::to_string(k) + ".jpg";
-}
-
-//-------------------------------------------------------------------------------------
-void EventObjectDetection::SaveImages(const std::string & eventDir) const
+void EventObjectDetection::SaveImages(const std::string & eventDir)
 {
     EventMotionDetection::SaveImages(eventDir);
-    int k = 0;
-    for(const ResultDetection & r : e.detectedObjects) {
-        std::string imgFilename = eventDir + "/" +  FileNameGenerator(k);
-
-        if( !cv::imwrite(imgFilename, r.croppedFrame) ) {
-            throw std::runtime_error("Can't write file: " + imgFilename);
-        }
-    }
 }
 
 //-------------------------------------------------------------------------------------
-void EventObjectDetection::GenerateJson(cJSON *jsonItem) const
+cJSON * EventObjectDetection::GenerateJson() const
 {
-    //add detected objects to json
-    int k = 0;
-    for(const ResultDetection & r : detectedObjects) {
-        std::string imgFilename = FileNameGenerator(k);
-
-        cJSON* jsonObject = cJSON_CreateObject();
-        if(jsonObject == NULL) {
-            throw std::runtime_error(errorJsonText);
-        }
-        cJSON_AddItemToArray(jsonItem, jsonObject);
-
-        r.GenerateJson(jsonObject, imgFilename);
-
-        k++;
-    }
+    return EventMotionDetection::GenerateJson();
 }
 
 //-------------------------------------------------------------------------------------
-void ResultDetection::GenerateJson(cJSON *jsonObject, const std::string & imgFilename) const
+cJSON * ResultDetection::GenerateJson() const
 {
-    if( cJSON_AddNumberToObject(jsonObject, "confidence_detecton", confdenceDetection) == NULL) {
-        throw std::runtime_error(errorJsonText);
+    cJSON * jsonObject = ResultMotion::GenerateJson();
+
+    cJSON * jsonArray = cJSON_CreateArray();
+    cJSON_AddItemToObject(jsonObject, "detected_objects", jsonArray);
+
+    for(std::shared_ptr<DataObject> r: objectData) {
+        cJSON * jsonItem = r->GenerateJson();
+        cJSON_AddItemToArray(jsonArray, jsonItem);
     }
 
-    if( cJSON_AddStringToObject(jsonObject, "cropped_frame", imgFilename.c_str()) == NULL) {
-        throw std::runtime_error(errorJsonText);
+    return jsonObject;
+}
+
+//-------------------------------------------------------------------------------------
+std::string DataDetection::FileNameGenerator() const
+{
+    return fileName;
+}
+
+//-------------------------------------------------------------------------------------
+cJSON * DataDetection::GenerateJson() const
+{
+    cJSON * jsonObject = cJSON_CreateObject();
+    if( cJSON_AddNumberToObject(jsonObject, "confidence_detection", confdenceDetection) == NULL) {
+        throw std::runtime_error(ERROR_JSON_TEXT);
+    }
+
+    if( cJSON_AddStringToObject(jsonObject, "cropped_frame", FileNameGenerator().c_str()) == NULL) {
+        throw std::runtime_error(ERROR_JSON_TEXT);
     }
 
     cJSON* jsonShape = cJSON_CreateArray();
     if (jsonShape == NULL) {
-        throw std::runtime_error(errorJsonText);
+        throw std::runtime_error(ERROR_JSON_TEXT);
     }
 
     cJSON_AddItemToObject(jsonObject, "plate_boundary", jsonShape);
@@ -65,19 +60,42 @@ void ResultDetection::GenerateJson(cJSON *jsonObject, const std::string & imgFil
     for(const cv::Point & p : border.points) {
         cJSON* jsonPoint = cJSON_CreateObject();
         if (jsonPoint == NULL) {
-            throw std::runtime_error(errorJsonText);
+            throw std::runtime_error(ERROR_JSON_TEXT);
         }
 
         if( cJSON_AddNumberToObject(jsonPoint, "x", p.x) == NULL) {
-            throw std::runtime_error(errorJsonText);
+            throw std::runtime_error(ERROR_JSON_TEXT);
         }
 
         if( cJSON_AddNumberToObject(jsonPoint, "y", p.y) == NULL) {
-            throw std::runtime_error(errorJsonText);
+            throw std::runtime_error(ERROR_JSON_TEXT);
         }
 
         cJSON_AddItemToArray(jsonShape, jsonPoint);
     }
 
+    return jsonObject;
+}
 
+//-------------------------------------------------------------------------------------
+void DataDetection::SaveImages(const std::string & eventDir)
+{
+    if(!dataAllReadySaved) {
+        std::string imgFilename = eventDir + "/" +  FileNameGenerator();
+
+        if( !cv::imwrite(imgFilename, croppedFrame) ) {
+            throw std::runtime_error("Can't write file: " + imgFilename);
+        }
+    }
+    dataAllReadySaved = true;
+}
+
+//-------------------------------------------------------------------------------------
+void ResultDetection::SaveImages(const std::string & eventDir)
+{
+    ResultMotion::SaveImages(eventDir);
+
+    for(std::shared_ptr<DataObject> obj : objectData) {
+        obj->SaveImages(eventDir);
+    }
 }

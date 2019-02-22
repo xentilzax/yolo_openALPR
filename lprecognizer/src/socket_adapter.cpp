@@ -14,20 +14,7 @@ void SocketAdapter::ParseConfig(cJSON* json_sub, SocketAdapter_Config & cfg)
 }
 
 //-------------------------------------------------------------------------------------
-void SocketAdapter::SaveEvent(std::vector<EventMotionDetection> & event)
+void SocketAdapter::SaveEvent(std::shared_ptr<Event> event)
 {
 
 }
-
-//-------------------------------------------------------------------------------------
-void SocketAdapter::SaveEvent(std::vector<EventObjectDetection> & event)
-{
-
-}
-
-//-------------------------------------------------------------------------------------
-void SocketAdapter::SaveEvent(std::vector<EventObjectRecognize> & event)
-{
-
-}
-

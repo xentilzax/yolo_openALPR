@@ -152,58 +152,51 @@ int main(int argc, char *argv[])
 
             count_images++;
 
-            std::vector<IZ::EventMotionDetection> eventsMotion;
-            std::vector<IZ::EventObjectDetection> eventsDetection;
-            std::vector<IZ::EventObjectRecognize> eventsRecognize;
-
             milliseconds ms = duration_cast<milliseconds>( system_clock::now().time_since_epoch() );
 
             auto beginTime = system_clock::now();
             time_point<system_clock> endTime, motionDetectorTime, detectorTime, recognitionTime;
 
-            conveer.motionDetector->Detection(img,
-                                              ms.count(),
-                                              eventsMotion);
+            std::shared_ptr<IZ::Event> event = conveer.motionDetector->Detection(img, ms.count());
             motionDetectorTime = system_clock::now();
 
             for(auto adapter :conveer.motionDetectorAdapters) {
-                adapter->SaveEvent(eventsMotion);
+                adapter->SaveEvent(event);
             }
 
             auto startDetectorTime = system_clock::now();
 
-            conveer.detector->Detection(eventsMotion, eventsDetection);
+            conveer.detector->Detection(event);
 
             detectorTime = system_clock::now();
 
             if ( cfg.conveer.motionDetectorName ==  "simple") {
-                std::vector<IZ::EventObjectDetection> copyEventsDetection;
-                for(const auto & e : eventsDetection) {
-                    if( !e.detectedObjects.empty() ) {
-                        copyEventsDetection.push_back(e);
+                for(std::shared_ptr<IZ::Result> result : event->arrayResults) {
+                    if( !result->IsEmpty() ) {
+                        event->arrayResults.clear();
+                        break;
                     }
                 }
-                eventsDetection = copyEventsDetection;
             }
 
-            for(auto adapter :conveer.motionDetectorAdapters) {
-                adapter->SaveEvent(eventsDetection);
+            for(auto adapter :conveer.detectorAdapters) {
+                adapter->SaveEvent(event);
             }
 
             auto startRecognizeTime = system_clock::now();
-            conveer.recognizer->Recognize(eventsDetection, eventsRecognize);
+            conveer.recognizer->Recognize(event);
             recognitionTime = system_clock::now();
 
-            for(auto adapter :conveer.motionDetectorAdapters) {
-                adapter->SaveEvent(eventsRecognize);
+            for(auto adapter :conveer.recognizerAdapters) {
+                adapter->SaveEvent(event);
             }
 
             if ( cfg.gui_enable ) {
-                for(size_t i = 0; i < eventsDetection.size(); i++) {
-                    for( auto & obj : eventsDetection[i].detectedObjects) {
-                        cv::imshow(std::to_string(i), obj.croppedFrame);
-                    }
-                }
+                //                for(size_t i = 0; i < event->arrayResults.size(); i++) {
+                //                    for( auto & obj : eventsDetection[i].detectedObjects) {
+                //                        cv::imshow(std::to_string(i), obj.croppedFrame);
+                //                    }
+                //                }
             }
 
             endTime = system_clock::now();

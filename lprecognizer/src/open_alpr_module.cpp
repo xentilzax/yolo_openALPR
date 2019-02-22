@@ -71,103 +71,108 @@ void ALPR_Module::Init()
 }
 
 //-----------------------------------------------------------------------------------------------------
-void ALPR_Module::Detection(const std::vector<EventMotionDetection> & events,
-                            std::vector<EventObjectDetection> & results)
+void ALPR_Module::Detection(std::shared_ptr<Event> & event)
 {
     open_alpr_use_detector = true;
     alprResults.clear();
+    std::shared_ptr<EventObjectDetection> eventObjectDetection = std::make_shared<EventObjectDetection>(event.get());
 
-    for(size_t k = 0; k < events.size(); k++) {
+    for(size_t k = 0; k < eventObjectDetection->arrayResults.size(); k++) {
         std::vector<alpr::AlprRegionOfInterest> roi_list;
-        cv::Mat img = events[k].frame;
         alpr::AlprResults alprResult;
+        cv::Mat img = std::dynamic_pointer_cast<ResultMotion>(eventObjectDetection->arrayResults[k])->frame;
 
         alprResult = openalpr->recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
 
-        EventObjectDetection eventObjectDetection(events[k]);
+        std::shared_ptr<ResultDetection> rd(
+                    new ResultDetection(
+                        reinterpret_cast<ResultMotion*>(
+                            eventObjectDetection->arrayResults[k].get())));
 
         for(size_t i = 0; i < alprResult.plates.size(); i++) {
-            ResultDetection rd;
+            std::shared_ptr<DataDetection> data =std::make_shared<DataDetection>(rd.get(), i);
 
             for(size_t j = 0; j < 4; j++) {
                 cv::Point point;
                 point.x = alprResult.plates[i].plate_points[j].x;
                 point.y = alprResult.plates[i].plate_points[j].y;
-                rd.border.points.push_back(point);
+                data->border.points.push_back(point);
             }
-            rd.confdenceDetection = alprResult.plates[i].regionConfidence / 100.f;
-            rd.croppedFrame = cv::imdecode(cv::Mat(alprResult.plates[i].plate_crop_jpeg), cv::IMREAD_COLOR);
-            eventObjectDetection.detectedObjects.push_back(rd);
+            data->confdenceDetection = alprResult.plates[i].regionConfidence / 100.f;
+            data->croppedFrame = cv::imdecode(cv::Mat(alprResult.plates[i].plate_crop_jpeg), cv::IMREAD_COLOR);
+            rd->objectData.push_back(data);
         }
         alprResults.push_back(alprResult);
-        results.push_back(eventObjectDetection);
+        eventObjectDetection->arrayResults[k] = rd;
     }
+
+    event = eventObjectDetection;
 }
 
 //-----------------------------------------------------------------------------------------------------
-void ALPR_Module::Recognize(std::vector<IZ::EventObjectDetection> & events,
-                            std::vector<IZ::EventObjectRecognize> & result)
+void ALPR_Module::Recognize(std::shared_ptr<Event> & event)
 {
+    std::shared_ptr<EventObjectRecognize> eventObjectRecognize = std::make_shared<EventObjectRecognize>(event.get());
+
     if(open_alpr_use_detector) {
-        for(size_t k = 0; k < events.size(); k++) {
-            EventObjectRecognize eventObjectRecognize(events[k]);
+        for(size_t k = 0; k < eventObjectRecognize->arrayResults.size(); k++) {
+            std::shared_ptr<ResultDetection> rd = std::dynamic_pointer_cast<ResultDetection>(eventObjectRecognize->arrayResults[k]);
 
-            for(size_t i = 0; i < events[k].detectedObjects.size(); i++) {
-                ResultRecognition rr(events[k].detectedObjects[i]);
+            for(size_t i = 0; i < rd->objectData.size(); i++) {
+                const DataDetection* dd = reinterpret_cast<DataDetection*>(rd->objectData[i].get());
+                std::shared_ptr<DataRecognition> data(new DataRecognition(dd));
 
-                rr.bestPlate.characters = alprResults[k].plates[i].bestPlate.characters;
-                rr.bestPlate.confidence = alprResults[k].plates[i].bestPlate.overall_confidence / 100.f;
-                rr.bestPlate.matchesTemplate = alprResults[k].plates[i].bestPlate.matches_template;
+                data->bestPlate.characters = alprResults[k].plates[i].bestPlate.characters;
+                data->bestPlate.confidence = alprResults[k].plates[i].bestPlate.overall_confidence / 100.f;
+                data->bestPlate.matchesTemplate = alprResults[k].plates[i].bestPlate.matches_template;
 
                 for(const auto & pl : alprResults[k].plates[i].topNPlates) {
                     Plate plate;
                     plate.characters = pl.characters;
                     plate.confidence = pl.overall_confidence / 100.f;
                     plate.matchesTemplate = pl.matches_template;
-                    rr.topNPlates.push_back(plate);
+                    data->topNPlates.push_back(plate);
                 }
 
-                eventObjectRecognize.recognizedObjects.push_back(rr);
+                rd->objectData[i] = std::static_pointer_cast<DataObject>(data);
             }
-
-            result.push_back(eventObjectRecognize);
         }
-
     } else {
         alprResults.clear();
         std::vector<alpr::AlprRegionOfInterest> roi_list;
 
-        for(size_t k = 0; k < events.size(); k++) {
-            EventObjectRecognize eventObjectRecognize(events[k]);
+        for(size_t k = 0; k < eventObjectRecognize->arrayResults.size(); k++) {
+            std::shared_ptr<ResultDetection> rd = std::dynamic_pointer_cast<ResultDetection>(eventObjectRecognize->arrayResults[k]);
 
-            for(size_t i = 0; i < events[k].detectedObjects.size(); i++) {
-                cv::Mat img = events[k].detectedObjects[i].croppedFrame;
+            for(size_t i = 0; i < rd->objectData.size(); i++) {
+                DataDetection* dd = reinterpret_cast<DataDetection*>(rd->objectData[i].get());
+                std::shared_ptr<DataRecognition> data(new DataRecognition(dd));
+
+                cv::Mat img = dd->croppedFrame;
 
                 alpr::AlprResults alprResult;
                 alprResult = openalpr->recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
 
-                ResultRecognition rr(events[k].detectedObjects[i]);
                 if(alprResult.plates.size() > 0) {
-
-                    rr.bestPlate.characters = alprResult.plates[0].bestPlate.characters;
-                    rr.bestPlate.confidence = alprResult.plates[0].bestPlate.overall_confidence / 100.f;
-                    rr.bestPlate.matchesTemplate = alprResult.plates[0].bestPlate.matches_template;
-                    rr.recognized = true;
+                    data->bestPlate.characters = alprResult.plates[0].bestPlate.characters;
+                    data->bestPlate.confidence = alprResult.plates[0].bestPlate.overall_confidence / 100.f;
+                    data->bestPlate.matchesTemplate = alprResult.plates[0].bestPlate.matches_template;
+                    data->recognized = true;
 
                     for(const auto & pl : alprResult.plates[0].topNPlates) {
                         Plate plate;
                         plate.characters = pl.characters;
                         plate.confidence = pl.overall_confidence / 100.f;
                         plate.matchesTemplate = pl.matches_template;
-                        rr.topNPlates.push_back(plate);
+                        data->topNPlates.push_back(plate);
                     }
                 } else {
-                    rr.recognized = false;
+                    data->recognized = false;
                 }
-                eventObjectRecognize.recognizedObjects.push_back(rr);
+                rd->objectData[i] = std::static_pointer_cast<DataObject>(data);
             }
-
-            result.push_back(eventObjectRecognize);
         }
     }
+
+    event = eventObjectRecognize;
 }
