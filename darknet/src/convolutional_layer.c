@@ -9,7 +9,7 @@
 #include <time.h>
 
 #ifdef CUDNN
-#pragma comment(lib, "cudnn.lib")  
+#pragma comment(lib, "cudnn.lib")
 #endif
 
 #ifdef AI2
@@ -141,7 +141,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference)
 {
 
 #ifdef CUDNN_HALF
-    // TRUE_HALF_CONFIG is only supported on architectures with true fp16 support (compute capability 5.3 and 6.0): 
+    // TRUE_HALF_CONFIG is only supported on architectures with true fp16 support (compute capability 5.3 and 6.0):
     //   Tegra X1, Jetson TX1, DRIVE CX, DRIVE PX, Quadro GP100, Tesla P100
     // PSEUDO_HALF_CONFIG is required for Tensor Cores - our case!
     const cudnnDataType_t data_type = CUDNN_DATA_HALF;
@@ -161,7 +161,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference)
     cudnnSetConvolutionMathType(l->convDesc, CUDNN_TENSOR_OP_MATH);
 #endif
 
-    // INT8_CONFIG, INT8_EXT_CONFIG, INT8x4_CONFIG and INT8x4_EXT_CONFIG are only supported 
+    // INT8_CONFIG, INT8_EXT_CONFIG, INT8x4_CONFIG and INT8x4_EXT_CONFIG are only supported
     //   on architectures with DP4A support (compute capability 6.1 and later).
     //cudnnDataType_t data_type = CUDNN_DATA_INT8;
 
@@ -188,7 +188,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference)
     int forward_algo = CUDNN_CONVOLUTION_FWD_PREFER_FASTEST;
     int backward_algo = CUDNN_CONVOLUTION_BWD_DATA_PREFER_FASTEST;
     int backward_filter = CUDNN_CONVOLUTION_BWD_FILTER_PREFER_FASTEST;
-    if (cudnn_preference == cudnn_smallest) 
+    if (cudnn_preference == cudnn_smallest)
     {
         forward_algo = CUDNN_CONVOLUTION_FWD_NO_WORKSPACE;
         backward_algo = CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE;
@@ -221,7 +221,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference)
             0,
             &l->bf_algo);
 
-    if (data_type == CUDNN_DATA_HALF) 
+    if (data_type == CUDNN_DATA_HALF)
     {
         // HALF-16 if(data_type == CUDNN_DATA_HALF)
         l->fw_algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
@@ -379,7 +379,7 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
             l.x_gpu = cuda_make_array(l.output, l.batch*out_h*out_w*n);
             l.x_norm_gpu = cuda_make_array(l.output, l.batch*out_h*out_w*n);
         }
-#ifdef CUDNN        
+#ifdef CUDNN
         cudnnCreateTensorDescriptor(&l.normDstTensorDesc);
         cudnnCreateTensorDescriptor(&l.normDstTensorDescF16);
         cudnnCreateTensorDescriptor(&l.normTensorDesc);
@@ -497,7 +497,7 @@ void resize_convolutional_layer(convolutional_layer *l, int w, int h)
     l->workspace_size = get_workspace_size(*l);
 
 #ifdef CUDNN
-    // check for excessive memory consumption 
+    // check for excessive memory consumption
     size_t free_byte;
     size_t total_byte;
     check_error(cudaMemGetInfo(&free_byte, &total_byte));
@@ -568,9 +568,12 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
     float *c = l.output;
 
     for(i = 0; i < l.batch; ++i){
-        im2col_cpu(state.input, l.c, l.h, l.w, 
-                l.size, l.stride, l.pad, b);
+        im2col_cpu(state.input, l.c, l.h, l.w,
+                   l.size, l.stride, l.pad, b);
         gemm(0,0,m,n,k,1,a,k,b,n,1,c,n);
+//        im2col_cpu_v2(state.input, l.c, l.h, l.w,
+//                l.size, l.stride, l.pad, b);
+//        gemm_v2(m, out_w, out_h, l.size, a, k, b, n, 1, c, n);
         c += n*m;
         state.input += l.c*l.h*l.w;
     }
@@ -606,7 +609,7 @@ void backward_convolutional_layer(convolutional_layer l, network_state state)
 
         float *im = state.input+i*l.c*l.h*l.w;
 
-        im2col_cpu(im, l.c, l.h, l.w, 
+        im2col_cpu(im, l.c, l.h, l.w,
                 l.size, l.stride, l.pad, b);
         gemm(0,1,m,n,k,1,a,k,b,k,1,c,n);
 
