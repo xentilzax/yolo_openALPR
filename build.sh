@@ -19,4 +19,4 @@ cp -r ./lprecognizer/unregister_service.sh ./build/
 
 cp ./darknet/nn.so ./build/
 cp ./lprecognizer/lprecognizer ./build/
-cp ./lprecognizer/diskmanager ./build/
+cp ./lprecognizer/*.so ./build/
