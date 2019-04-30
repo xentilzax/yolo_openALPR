@@ -4,7 +4,7 @@
 #include "option_list.h"
 #include "utils.h"
 
-list *read_data_cfg(char *filename)
+list *read_data_cfg(const char *filename)
 {
     FILE *file = fopen(filename, "r");
     if(file == 0) file_error(filename);
@@ -22,7 +22,7 @@ list *read_data_cfg(char *filename)
                 break;
             default:
                 if(!read_option(line, options)){
-                    fprintf(stderr, "Config file error line %d, could parse: %s\n", nu, line);
+                    print_to_stderr(stderr, "Config file error line %d, could parse: %s\n", nu, line);
                     free(line);
                 }
                 break;
@@ -40,14 +40,14 @@ metadata get_metadata(char *file)
     char *name_list = option_find_str(options, "names", 0);
     if (!name_list) name_list = option_find_str(options, "labels", 0);
     if (!name_list) {
-        fprintf(stderr, "No names or labels found\n");
+        print_to_stderr(stderr, "No names or labels found\n");
     }
     else {
         m.names = get_labels(name_list);
     }
     m.classes = option_find_int(options, "classes", 2);
     free_list(options);
-    printf("Loaded - names_list: %s, classes = %d \n", name_list, m.classes);
+    print_to_stdout("Loaded - names_list: %s, classes = %d \n", name_list, m.classes);
     return m;
 }
 
@@ -84,13 +84,13 @@ void option_unused(list *l)
     while(n){
         kvp *p = (kvp *)n->val;
         if(!p->used){
-            fprintf(stderr, "Unused field: '%s = %s'\n", p->key, p->val);
+            print_to_stderr(stderr, "Unused field: '%s = %s'\n", p->key, p->val);
         }
         n = n->next;
     }
 }
 
-char *option_find(list *l, char *key)
+char *option_find(list *l, const char *key)
 {
     node *n = l->front;
     while(n){
@@ -103,40 +103,40 @@ char *option_find(list *l, char *key)
     }
     return 0;
 }
-char *option_find_str(list *l, char *key, char *def)
+const char *option_find_str(list *l, const char *key, const char *def)
 {
     char *v = option_find(l, key);
     if(v) return v;
-    if(def) fprintf(stderr, "%s: Using default '%s'\n", key, def);
+    if(def) print_to_stderr(stderr, "%s: Using default '%s'\n", key, def);
     return def;
 }
 
-int option_find_int(list *l, char *key, int def)
+int option_find_int(list *l, const char *key, int def)
 {
     char *v = option_find(l, key);
     if(v) return atoi(v);
-    fprintf(stderr, "%s: Using default '%d'\n", key, def);
+    print_to_stderr(stderr, "%s: Using default '%d'\n", key, def);
     return def;
 }
 
-int option_find_int_quiet(list *l, char *key, int def)
+int option_find_int_quiet(list *l, const char *key, int def)
 {
     char *v = option_find(l, key);
     if(v) return atoi(v);
     return def;
 }
 
-float option_find_float_quiet(list *l, char *key, float def)
+float option_find_float_quiet(list *l, const char *key, float def)
 {
     char *v = option_find(l, key);
     if(v) return atof(v);
     return def;
 }
 
-float option_find_float(list *l, char *key, float def)
+float option_find_float(list *l, const char *key, float def)
 {
     char *v = option_find(l, key);
     if(v) return atof(v);
-    fprintf(stderr, "%s: Using default '%lf'\n", key, def);
+    print_to_stderr(stderr, "%s: Using default '%lf'\n", key, def);
     return def;
 }

@@ -80,12 +80,12 @@ void free_data(data d);
 pthread_t load_data(load_args args);
 
 pthread_t load_data_in_thread(load_args args);
-
+void data_augmentation(const char *filename, image im,  int boxes, int classes, float** X, float* y, int w, int h, int use_flip, float jitter, float angle, float hue, float saturation, float exposure, int small_object);
 void print_letters(float *pred, int n);
 data load_data_captcha(char **paths, int n, int m, int k, int w, int h);
 data load_data_captcha_encode(char **paths, int n, int m, int w, int h);
 data load_data_old(char **paths, int n, int m, char **labels, int k, int w, int h);
-data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int classes, int use_flip, float jitter, float hue, float saturation, float exposure, int small_object);
+data load_data_detection(int n, const char **paths, int m, int w, int h, int c, int boxes, int classes, int use_flip, float jitter, float angle, float hue, float saturation, float exposure, int small_object);
 data load_data_tag(char **paths, int n, int m, int k, int use_flip, int min, int max, int size, float angle, float aspect, float hue, float saturation, float exposure);
 matrix load_image_augment_paths(char **paths, int n, int use_flip, int min, int max, int size, float angle, float aspect, float hue, float saturation, float exposure);
 data load_data_super(char **paths, int n, int m, int w, int h, int scale);

@@ -1,6 +1,7 @@
 #include "reorg_layer.h"
 #include "cuda.h"
 #include "blas.h"
+#include "utils.h"
 #include <stdio.h>
 
 
@@ -23,7 +24,7 @@ layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse)
         l.out_c = c*(stride*stride);
     }
     l.reverse = reverse;
-    fprintf(stderr, "reorg              /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",  stride, w, h, c, l.out_w, l.out_h, l.out_c);
+    print_to_stderr(stderr, "reorg              /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",  stride, w, h, c, l.out_w, l.out_h, l.out_c);
     l.outputs = l.out_h * l.out_w * l.out_c;
     l.inputs = h*w*c;
     int output_size = l.out_h * l.out_w * l.out_c * batch;

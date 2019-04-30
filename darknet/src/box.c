@@ -143,7 +143,7 @@ void test_dunion()
 
     box b = {.5, .5, .2, .2};
     dbox di = dunion(a,b);
-    printf("Union: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
+    print_to_stdout("Union: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
     float inter =  box_union(a, b);
     float xinter = box_union(dxa, b);
     float yinter = box_union(dya, b);
@@ -153,7 +153,7 @@ void test_dunion()
     yinter = (yinter - inter)/(.0001);
     winter = (winter - inter)/(.0001);
     hinter = (hinter - inter)/(.0001);
-    printf("Union Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
+    print_to_stdout("Union Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
 void test_dintersect()
 {
@@ -165,7 +165,7 @@ void test_dintersect()
 
     box b = {.5, .5, .2, .2};
     dbox di = dintersect(a,b);
-    printf("Inter: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
+    print_to_stdout("Inter: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
     float inter =  box_intersection(a, b);
     float xinter = box_intersection(dxa, b);
     float yinter = box_intersection(dya, b);
@@ -175,7 +175,7 @@ void test_dintersect()
     yinter = (yinter - inter)/(.0001);
     winter = (winter - inter)/(.0001);
     hinter = (hinter - inter)/(.0001);
-    printf("Inter Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
+    print_to_stdout("Inter Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
 
 void test_box()
@@ -192,9 +192,9 @@ void test_box()
 
     float iou = box_iou(a,b);
     iou = (1-iou)*(1-iou);
-    printf("%f\n", iou);
+    print_to_stdout("%f\n", iou);
     dbox d = diou(a, b);
-    printf("%f %f %f %f\n", d.dx, d.dy, d.dw, d.dh);
+    print_to_stdout("%f %f %f %f\n", d.dx, d.dy, d.dw, d.dh);
 
     float xiou = box_iou(dxa, b);
     float yiou = box_iou(dya, b);
@@ -204,7 +204,7 @@ void test_box()
     yiou = ((1-yiou)*(1-yiou) - iou)/(.00001);
     wiou = ((1-wiou)*(1-wiou) - iou)/(.00001);
     hiou = ((1-hiou)*(1-hiou) - iou)/(.00001);
-    printf("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
+    print_to_stdout("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
 }
 
 dbox diou(box a, box b)
@@ -349,7 +349,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
         }
         qsort(dets, total, sizeof(detection), nms_comparator_v3);
         for (i = 0; i < total; ++i) {
-            //printf("  k = %d, \t i = %d \n", k, i);
+            //print_to_stdout("  k = %d, \t i = %d \n", k, i);
             if (dets[i].prob[k] == 0) continue;
             box a = dets[i].bbox;
             for (j = i + 1; j < total; ++j) {

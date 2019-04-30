@@ -106,7 +106,7 @@ connected_layer make_connected_layer(int batch, int inputs, int outputs, ACTIVAT
     }
 #endif
     l.activation = activation;
-    fprintf(stderr, "connected                            %4d  ->  %4d\n", inputs, outputs);
+    print_to_stderr(stderr, "connected                            %4d  ->  %4d\n", inputs, outputs);
     return l;
 }
 
@@ -216,18 +216,18 @@ void denormalize_connected_layer(layer l)
 void statistics_connected_layer(layer l)
 {
     if(l.batch_normalize){
-        printf("Scales ");
+        print_to_stdout("Scales ");
         print_statistics(l.scales, l.outputs);
         /*
-        printf("Rolling Mean ");
+        print_to_stdout("Rolling Mean ");
         print_statistics(l.rolling_mean, l.outputs);
-        printf("Rolling Variance ");
+        print_to_stdout("Rolling Variance ");
         print_statistics(l.rolling_variance, l.outputs);
         */
     }
-    printf("Biases ");
+    print_to_stdout("Biases ");
     print_statistics(l.biases, l.outputs);
-    printf("Weights ");
+    print_to_stdout("Weights ");
     print_statistics(l.weights, l.outputs);
 }
 

@@ -55,7 +55,7 @@ void time_random_matrix(int TA, int TB, int m, int k, int n)
         gemm_cpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
     }
     end = clock();
-    printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf ms\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
+    print_to_stdout("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf ms\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
     free(a);
     free(b);
     free(c);
@@ -69,14 +69,6 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
         float *C, int ldc)
 {
     gemm_cpu( TA,  TB,  M, N, K, ALPHA,A,lda, B, ldb,BETA,C,ldc);
-}
-void gemm_v2(int M, int W, int H, int K,
-             float *A, int lda,
-             float *B, int ldb,
-             float BETA,
-             float *C, int ldc)
-{
-    gemm_cpu_v2(M, W, H, K, A,lda, B, ldb, BETA,C,ldc);
 }
 
 #if (defined(__AVX__) && defined(__x86_64__)) || defined(_WIN64)
@@ -108,10 +100,10 @@ void asm_cpuid(uint32_t* abcd, uint32_t eax)
 
     // EBX is saved to EDI and later restored
     __asm__("movl %%ebx, %%edi;"
-    "cpuid;"
-    "xchgl %%ebx, %%edi;"
-    : "=D"(ebx),
-            "+a"(eax), "+c"(ecx), "=d"(edx));
+        "cpuid;"
+        "xchgl %%ebx, %%edi;"
+        : "=D"(ebx),
+        "+a"(eax), "+c"(ecx), "=d"(edx));
 
     abcd[0] = eax;
     abcd[1] = ebx;
@@ -141,17 +133,17 @@ int is_fma_avx() {
     static int result = -1;
     if (result == -1) {
         result = simd_detect_x86(AVXFlag);
-        if (result == 1) printf(" Used AVX \n");
-        else printf(" Not used AVX \n");
+//        if (result == 1) print_to_stdout(" Used AVX \n");
+//        else print_to_stdout(" Not used AVX \n");
     }
     return result;
 }
 
 // https://software.intel.com/sites/landingpage/IntrinsicsGuide
 void gemm_nn(int M, int N, int K, float ALPHA,
-             float *A, int lda,
-             float *B, int ldb,
-             float *C, int ldc)
+    float *A, int lda,
+    float *B, int ldb,
+    float *C, int ldc)
 {
     int i, j, k;
     if (is_fma_avx() == 1) {    // AVX
@@ -221,40 +213,6 @@ void gemm_nn(int M, int N, int K, float ALPHA,
         }
     }
 }
-
-//for im2col_v2
-void gemm_nn_v2(int M, int W, int H, int K,
-                float *A, int lda,
-                float *B, int ldb,
-                float *C, int ldc)
-{
-    int i, j, h, w, y, x;
-    int z, Z = lda / K / K;
-    int pad = K / 2;
-    int start_x, end_x;
-    int start_y, end_y;
-
-
-    for (i = 0; i < M; ++i) {
-        for(z = 0; z < Z; ++z) { //color
-            for (h = 0; h < K; ++h) {//rows filter
-                for (w = 0; w < K; ++w) {//cols filter
-
-                    start_x = (w-pad) < 0 ? pad-w : 0;
-                    end_x = (W + w-pad) > W ? W-w+pad : W;
-                    start_y = (h-pad) < 0 ? pad-h : 0;
-                    end_y = (H + h-pad) > H ? H-h+pad : H;
-
-                    for (y = start_y; y < end_y; ++y) {//rows image
-                        for (x = start_x; x < end_x; ++x) {//cols image
-                            C[i*ldc + y*W + x] += B[z*ldb + (y+h-pad)*W + x+w-pad] * A[i*lda + z*K*K + h*K + w];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 #endif    // __x86_64
 
 void gemm_nt(int M, int N, int K, float ALPHA, 
@@ -314,7 +272,7 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
         float BETA,
         float *C, int ldc)
 {
-    //printf("cpu: %d %d %d %d %d %f %d %d %f %d\n",TA, TB, M, N, K, ALPHA, lda, ldb, BETA, ldc);
+    //print_to_stdout("cpu: %d %d %d %d %d %f %d %d %f %d\n",TA, TB, M, N, K, ALPHA, lda, ldb, BETA, ldc);
     if (BETA != 1){
         int i, j;
         for(i = 0; i < M; ++i){
@@ -325,7 +283,7 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
     }
 
     int t;
-#pragma omp parallel for
+    #pragma omp parallel for
     for (t = 0; t < M; ++t) {
         if (!TA && !TB)
             gemm_nn(1, N, K, ALPHA, A + t*lda, lda, B, ldb, C + t*ldc, ldc);
@@ -338,51 +296,28 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
     }
 }
 
-void gemm_cpu_v2(int M, int W, int H, int K,
-                 float *A, int lda,
-                 float *B, int ldb,
-                 float BETA,
-                 float *C, int ldc)
-{
-    //printf("cpu: %d %d %d %d %d %f %d %d %f %d\n",TA, TB, M, N, K, ALPHA, lda, ldb, BETA, ldc);
-    if (BETA != 1){
-        int i, j;
-        for(i = 0; i < M; ++i){
-            for(j = 0; j < H*W; ++j){
-                C[i*ldc + j] *= BETA;
-            }
-        }
-    }
-
-    int t;
-#pragma omp parallel for
-    for (t = 0; t < M; ++t) {
-        gemm_nn_v2(1, W, H, K, A + t*lda, lda, B, ldb, C + t*ldc, ldc);
-
-    }
-}
 #ifdef GPU
 
 #include <math.h>
 
-void gemm_ongpu(int TA, int TB, int M, int N, int K, float ALPHA,
-                float *A_gpu, int lda,
-                float *B_gpu, int ldb,
-                float BETA,
-                float *C_gpu, int ldc)
+void gemm_ongpu(int TA, int TB, int M, int N, int K, float ALPHA, 
+        float *A_gpu, int lda, 
+        float *B_gpu, int ldb,
+        float BETA,
+        float *C_gpu, int ldc)
 {
     cublasHandle_t handle = blas_handle();
     cudaError_t stream_status = cublasSetStream(handle, get_cuda_stream());
-    cudaError_t status = cublasSgemm(handle, (TB ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                     (TA ? CUBLAS_OP_T : CUBLAS_OP_N), N, M, K, &ALPHA, B_gpu, ldb, A_gpu, lda, &BETA, C_gpu, ldc);
+    cudaError_t status = cublasSgemm(handle, (TB ? CUBLAS_OP_T : CUBLAS_OP_N), 
+            (TA ? CUBLAS_OP_T : CUBLAS_OP_N), N, M, K, &ALPHA, B_gpu, ldb, A_gpu, lda, &BETA, C_gpu, ldc);
     check_error(status);
 }
 
-void gemm_gpu(int TA, int TB, int M, int N, int K, float ALPHA,
-              float *A, int lda,
-              float *B, int ldb,
-              float BETA,
-              float *C, int ldc)
+void gemm_gpu(int TA, int TB, int M, int N, int K, float ALPHA, 
+        float *A, int lda, 
+        float *B, int ldb,
+        float BETA,
+        float *C, int ldc)
 {
     float *A_gpu = cuda_make_array(A, (TA ? lda*K:lda*M));
     float *B_gpu = cuda_make_array(B, (TB ? ldb*N : ldb*K));
@@ -419,7 +354,7 @@ void time_gpu_random_matrix(int TA, int TB, int m, int k, int n)
         gemm_gpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
     }
     end = clock();
-    printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
+    print_to_stdout("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
     free(a);
     free(b);
     free(c);
@@ -450,7 +385,7 @@ void time_ongpu(int TA, int TB, int m, int k, int n)
     double gflop = flop/pow(10., 9);
     end = clock();
     double seconds = sec(end-start);
-    printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s, %lf GFLOPS\n",m,k,k,n, TA, TB, seconds, gflop/seconds);
+    print_to_stdout("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s, %lf GFLOPS\n",m,k,k,n, TA, TB, seconds, gflop/seconds);
     cuda_free(a_cl);
     cuda_free(b_cl);
     cuda_free(c_cl);
@@ -479,18 +414,18 @@ void test_gpu_accuracy(int TA, int TB, int m, int k, int n)
     int i;
     //pm(m,k,b);
     gemm_gpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c_gpu,n);
-    //printf("GPU\n");
+    //print_to_stdout("GPU\n");
     //pm(m, n, c_gpu);
 
     gemm_cpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
-    //printf("\n\nCPU\n");
+    //print_to_stdout("\n\nCPU\n");
     //pm(m, n, c);
     double sse = 0;
     for(i = 0; i < m*n; ++i) {
-        //printf("%f %f\n", c[i], c_gpu[i]);
+        //print_to_stdout("%f %f\n", c[i], c_gpu[i]);
         sse += pow(c[i]-c_gpu[i], 2);
     }
-    printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %g SSE\n",m,k,k,n, TA, TB, sse/(m*n));
+    print_to_stdout("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %g SSE\n",m,k,k,n, TA, TB, sse/(m*n));
     free(a);
     free(b);
     free(c);
@@ -500,38 +435,38 @@ void test_gpu_accuracy(int TA, int TB, int m, int k, int n)
 int test_gpu_blas()
 {
     /*
-       test_gpu_accuracy(0,0,10,576,75);
+       test_gpu_accuracy(0,0,10,576,75); 
 
-       test_gpu_accuracy(0,0,17,10,10);
-       test_gpu_accuracy(1,0,17,10,10);
-       test_gpu_accuracy(0,1,17,10,10);
-       test_gpu_accuracy(1,1,17,10,10);
+       test_gpu_accuracy(0,0,17,10,10); 
+       test_gpu_accuracy(1,0,17,10,10); 
+       test_gpu_accuracy(0,1,17,10,10); 
+       test_gpu_accuracy(1,1,17,10,10); 
 
-       test_gpu_accuracy(0,0,1000,10,100);
-       test_gpu_accuracy(1,0,1000,10,100);
-       test_gpu_accuracy(0,1,1000,10,100);
-       test_gpu_accuracy(1,1,1000,10,100);
+       test_gpu_accuracy(0,0,1000,10,100); 
+       test_gpu_accuracy(1,0,1000,10,100); 
+       test_gpu_accuracy(0,1,1000,10,100); 
+       test_gpu_accuracy(1,1,1000,10,100); 
 
-       test_gpu_accuracy(0,0,10,10,10);
+       test_gpu_accuracy(0,0,10,10,10); 
 
-       time_ongpu(0,0,64,2916,363);
-       time_ongpu(0,0,64,2916,363);
-       time_ongpu(0,0,64,2916,363);
-       time_ongpu(0,0,192,729,1600);
-       time_ongpu(0,0,384,196,1728);
-       time_ongpu(0,0,256,196,3456);
-       time_ongpu(0,0,256,196,2304);
-       time_ongpu(0,0,128,4096,12544);
-       time_ongpu(0,0,128,4096,4096);
+       time_ongpu(0,0,64,2916,363); 
+       time_ongpu(0,0,64,2916,363); 
+       time_ongpu(0,0,64,2916,363); 
+       time_ongpu(0,0,192,729,1600); 
+       time_ongpu(0,0,384,196,1728); 
+       time_ongpu(0,0,256,196,3456); 
+       time_ongpu(0,0,256,196,2304); 
+       time_ongpu(0,0,128,4096,12544); 
+       time_ongpu(0,0,128,4096,4096); 
      */
-    time_ongpu(0,0,64,75,12544);
-    time_ongpu(0,0,64,75,12544);
-    time_ongpu(0,0,64,75,12544);
-    time_ongpu(0,0,64,576,12544);
-    time_ongpu(0,0,256,2304,784);
-    time_ongpu(1,1,2304,256,784);
-    time_ongpu(0,0,512,4608,196);
-    time_ongpu(1,1,4608,512,196);
+    time_ongpu(0,0,64,75,12544); 
+    time_ongpu(0,0,64,75,12544); 
+    time_ongpu(0,0,64,75,12544); 
+    time_ongpu(0,0,64,576,12544); 
+    time_ongpu(0,0,256,2304,784); 
+    time_ongpu(1,1,2304,256,784); 
+    time_ongpu(0,0,512,4608,196); 
+    time_ongpu(1,1,4608,512,196); 
 
     return 0;
 }

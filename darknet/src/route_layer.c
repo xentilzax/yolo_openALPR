@@ -1,11 +1,13 @@
 #include "route_layer.h"
 #include "cuda.h"
 #include "blas.h"
+#include "utils.h"
 #include <stdio.h>
+
 
 route_layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes)
 {
-    fprintf(stderr,"route ");
+    print_to_stderr(stderr,"route ");
     route_layer l = {0};
     l.type = ROUTE;
     l.batch = batch;
@@ -15,10 +17,10 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
     int i;
     int outputs = 0;
     for(i = 0; i < n; ++i){
-        fprintf(stderr," %d", input_layers[i]);
+        print_to_stderr(stderr," %d", input_layers[i]);
         outputs += input_sizes[i];
     }
-    fprintf(stderr, "\n");
+    print_to_stderr(stderr, "\n");
     l.outputs = outputs;
     l.inputs = outputs;
     l.delta =  calloc(outputs*batch, sizeof(float));
@@ -53,7 +55,7 @@ void resize_route_layer(route_layer *l, network *net)
         if(next.out_w == first.out_w && next.out_h == first.out_h){
             l->out_c += next.out_c;
         }else{
-            printf("%d %d, %d %d\n", next.out_w, next.out_h, first.out_w, first.out_h);
+            print_to_stdout("%d %d, %d %d\n", next.out_w, next.out_h, first.out_w, first.out_h);
             l->out_h = l->out_w = l->out_c = 0;
         }
     }

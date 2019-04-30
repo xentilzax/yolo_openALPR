@@ -17,4 +17,5 @@ void forward_detection_layer_gpu(const detection_layer l, network_state state);
 void backward_detection_layer_gpu(detection_layer l, network_state state);
 #endif
 
+
 #endif

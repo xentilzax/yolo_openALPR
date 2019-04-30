@@ -149,33 +149,33 @@ void matrix_to_csv(matrix m)
 
     for(i = 0; i < m.rows; ++i){
         for(j = 0; j < m.cols; ++j){
-            if(j > 0) printf(",");
-            printf("%.17g", m.vals[i][j]);
+            if(j > 0) print_to_stdout(",");
+            print_to_stdout("%.17g", m.vals[i][j]);
         }
-        printf("\n");
+        print_to_stdout("\n");
     }
 }
 
 void print_matrix(matrix m)
 {
     int i, j;
-    printf("%d X %d Matrix:\n",m.rows, m.cols);
-    printf(" __");
-    for(j = 0; j < 16*m.cols-1; ++j) printf(" ");
-    printf("__ \n");
+    print_to_stdout("%d X %d Matrix:\n",m.rows, m.cols);
+    print_to_stdout(" __");
+    for(j = 0; j < 16*m.cols-1; ++j) print_to_stdout(" ");
+    print_to_stdout("__ \n");
 
-    printf("|  ");
-    for(j = 0; j < 16*m.cols-1; ++j) printf(" ");
-    printf("  |\n");
+    print_to_stdout("|  ");
+    for(j = 0; j < 16*m.cols-1; ++j) print_to_stdout(" ");
+    print_to_stdout("  |\n");
 
     for(i = 0; i < m.rows; ++i){
-        printf("|  ");
+        print_to_stdout("|  ");
         for(j = 0; j < m.cols; ++j){
-            printf("%15.7f ", m.vals[i][j]);
+            print_to_stdout("%15.7f ", m.vals[i][j]);
         }
-        printf(" |\n");
+        print_to_stdout(" |\n");
     }
-    printf("|__");
-    for(j = 0; j < 16*m.cols-1; ++j) printf(" ");
-    printf("__|\n");
+    print_to_stdout("|__");
+    for(j = 0; j < 16*m.cols-1; ++j) print_to_stdout(" ");
+    print_to_stdout("__|\n");
 }

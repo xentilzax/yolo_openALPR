@@ -21,5 +21,6 @@ void push_rnn_layer(layer l);
 void pull_rnn_layer(layer l);
 #endif
 
+
 #endif
 

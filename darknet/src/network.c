@@ -559,7 +559,7 @@ int num_detections(network *net, float thresh)
             s += yolo_num_detections(l, thresh);
         }
         if (l.type == DETECTION || l.type == REGION) {
-            s += l.w*l.h*l.n;
+            s += l.w*l.h*l.n*l.batch;
         }
     }
     return s;
@@ -584,12 +584,12 @@ detection *make_network_boxes(network *net, float thresh, int *num)
 
 void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, detection *dets, int letter)
 {
-    box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
-    float **probs = calloc(l.w*l.h*l.n, sizeof(float *));
+    box *boxes = calloc(l.w*l.h*l.n*l.batch, sizeof(box));
+    float **probs = calloc(l.w*l.h*l.n*l.batch, sizeof(float *));
     int i, j;
-    for (j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float));
+    for (j = 0; j < l.w*l.h*l.n*l.batch; ++j) probs[j] = calloc(l.classes, sizeof(float));
     get_region_boxes(l, 1, 1, thresh, probs, boxes, 0, map);
-    for (j = 0; j < l.w*l.h*l.n; ++j) {
+    for (j = 0; j < l.w*l.h*l.n*l.batch; ++j) {
         dets[j].classes = l.classes;
         dets[j].bbox = boxes[j];
         dets[j].objectness = 1;
@@ -601,7 +601,6 @@ void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h, f
     free(boxes);
     free_ptrs((void **)probs, l.w*l.h*l.n);
 
-    //correct_region_boxes(dets, l.w*l.h*l.n, w, h, net_w, net_h, relative);
     correct_yolo_boxes(dets, l.w*l.h*l.n, w, h, net_w, net_h, relative, letter);
 }
 

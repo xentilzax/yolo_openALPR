@@ -14,4 +14,5 @@ void forward_shortcut_layer_gpu(const layer l, network_state state);
 void backward_shortcut_layer_gpu(const layer l, network_state state);
 #endif
 
+
 #endif

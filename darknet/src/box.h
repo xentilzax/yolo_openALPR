@@ -15,6 +15,7 @@
 #endif
 #endif
 
+
 typedef struct{
     float x, y, w, h;
 } box;
@@ -53,5 +54,6 @@ box encode_box(box b, box anchor);
 // Creates array of detections with prob > thresh and fills best_class for them
 // Return number of selected detections in *selected_detections_num
 detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num);
+
 
 #endif

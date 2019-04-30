@@ -21,7 +21,7 @@ void change_leaves(tree *t, char *leaf_list)
             }
         }
     }
-    fprintf(stderr, "Found %d leaves.\n", found);
+    print_to_stderr(stderr, "Found %d leaves.\n", found);
 }
 
 float get_hierarchy_probability(float *x, tree *hier, int c)
@@ -82,7 +82,7 @@ int hierarchy_top_prediction(float *predictions, tree *hier, float thresh, int s
     return 0;
 }
 
-tree *read_tree(char *filename)
+tree *read_tree(const char *filename)
 {
     tree t = {0};
     FILE *fp = fopen(filename, "r");

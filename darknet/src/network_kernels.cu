@@ -308,7 +308,7 @@ void distribute_updates(layer l, layer base)
 
 void sync_layer(network *nets, int n, int j)
 {
-    //printf("Syncing layer %d\n", j);
+    //print_to_stdout("Syncing layer %d\n", j);
     int i;
     network net = nets[0];
     layer base = net.layers[j];
@@ -326,7 +326,7 @@ void sync_layer(network *nets, int n, int j)
         layer l = nets[i].layers[j];
         distribute_weights(l, base);
     }
-    //printf("Done syncing layer %d\n", j);
+    //print_to_stdout("Done syncing layer %d\n", j);
 }
 
 typedef struct{
@@ -389,15 +389,15 @@ float train_networks(network *nets, int n, data d, int interval)
     }
     for(i = 0; i < n; ++i){
         pthread_join(threads[i], 0);
-        //printf("%f\n", errors[i]);
+        //print_to_stdout("%f\n", errors[i]);
         sum += errors[i];
     }
     //cudaDeviceSynchronize();
     if (get_current_batch(nets[0]) % interval == 0) {
-        printf("Syncing... ");
+        print_to_stdout("Syncing... ");
         fflush(stdout);
         sync_nets(nets, n, interval);
-        printf("Done!\n");
+        print_to_stdout("Done!\n");
     }
     //cudaDeviceSynchronize();
     free(threads);

@@ -31,7 +31,7 @@ layer make_activation_layer(int batch, int inputs, ACTIVATION activation)
     l.delta_gpu = cuda_make_array(l.delta, inputs*batch);
 #endif
     l.activation = activation;
-    fprintf(stderr, "Activation Layer: %d inputs\n", inputs);
+    print_to_stderr(stderr, "Activation Layer: %d inputs\n", inputs);
     return l;
 }
 

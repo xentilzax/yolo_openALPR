@@ -269,22 +269,22 @@ extern "C" {
     image ipl_to_image(IplImage* src);    // image.c
 }
 
-image image_data_augmentation(IplImage* ipl, int w, int h,
-    int pleft, int ptop, int swidth, int sheight, int flip,
-    float jitter, float dhue, float dsat, float dexp)
+image image_data_augmentation(IplImage* ipl,
+                              int w, int h,
+                              int pleft, int ptop, int swidth, int sheight,
+                              int flip, float dhue, float dsat, float dexp)
 {
     cv::Mat img = cv::cvarrToMat(ipl);
 
     // crop
-    cv::Rect src_rect(pleft, ptop, swidth, sheight);
-    cv::Rect img_rect(cv::Point2i(0, 0), img.size());
-    cv::Rect new_src_rect = src_rect & img_rect;
+    cv::Rect src_rect(cv::Point(pleft, ptop), img.size());
+    cv::Rect ratio_rect(0, 0, swidth, sheight);
+    cv::Rect dst_rect = ratio_rect & src_rect;
+    cv::Rect img_rect(cv::Point(0, 0), img.size());
+    cv::Rect new_src_rect = img_rect & cv::Rect(-pleft, -ptop, swidth, sheight);
 
-    cv::Rect dst_rect(cv::Point2i(std::max(0, -pleft), std::max(0, -ptop)), new_src_rect.size());
-
-    cv::Mat cropped(cv::Size(src_rect.width, src_rect.height), img.type());
+    cv::Mat cropped(cv::Size(swidth, sheight), img.type());
     cropped.setTo(cv::Scalar::all(0));
-
     img(new_src_rect).copyTo(cropped(dst_rect));
 
     // resize
@@ -294,7 +294,7 @@ image image_data_augmentation(IplImage* ipl, int w, int h,
     // flip
     if (flip) {
         cv::flip(sized, cropped, 1);    // 0 - x-axis, 1 - y-axis, -1 - both axes (x & y)
-        sized = cropped.clone();
+        sized = cropped;
     }
 
     // HSV augmentation

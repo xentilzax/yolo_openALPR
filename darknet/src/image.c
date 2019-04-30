@@ -1742,7 +1742,7 @@ float bilinear_interpolate(const image im, float x, float y, int c)
     return val;
 }
 
-image resize_image(image im, int w, int h)
+image resize_image(const image im, int w, int h)
 {
     image resized = make_image(w, h, im.c);
     int y, x, color;

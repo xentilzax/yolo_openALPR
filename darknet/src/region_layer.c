@@ -129,17 +129,17 @@ void delta_region_class(float *output, float *delta, int index, int class_id, in
             class_id = hier->parent[class_id];
         }
         *avg_cat += pred;
-    } else {        
+    } else {
         // Focal loss
         if (focal_loss) {
             // Focal Loss
             float alpha = 0.5;    // 0.25 or 0.5
-            //float gamma = 2;    // hardcoded in many places of the grad-formula    
+            //float gamma = 2;    // hardcoded in many places of the grad-formula
 
             int ti = index + class_id;
             float pt = output[ti] + 0.000000000000001F;
             // http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiItKDEteCkqKDIqeCpsb2coeCkreC0xKSIsImNvbG9yIjoiIzAwMDAwMCJ9LHsidHlwZSI6MTAwMH1d
-            float grad = -(1 - pt) * (2 * pt*logf(pt) + pt - 1);    // http://blog.csdn.net/linmingan/article/details/77885832    
+            float grad = -(1 - pt) * (2 * pt*logf(pt) + pt - 1);    // http://blog.csdn.net/linmingan/article/details/77885832
             //float grad = (1 - pt) * (2 * pt*logf(pt) + pt - 1);    // https://github.com/unsky/focal-loss
 
             for (n = 0; n < classes; ++n) {
@@ -183,9 +183,9 @@ void forward_region_layer(const region_layer l, network_state state)
     int i,j,b,t,n;
     int size = l.coords + l.classes + 1;
     memcpy(l.output, state.input, l.outputs*l.batch*sizeof(float));
-    #ifndef GPU
+#ifndef GPU
     flatten(l.output, l.w*l.h, size*l.n, l.batch, 1);
-    #endif
+#endif
     for (b = 0; b < l.batch; ++b){
         for(i = 0; i < l.h*l.w*l.n; ++i){
             int index = size*i + b*l.outputs;
@@ -357,9 +357,9 @@ void forward_region_layer(const region_layer l, network_state state)
         }
     }
     //print_to_stdout("\n");
-    #ifndef GPU
+#ifndef GPU
     flatten(l.delta, l.w*l.h, size*l.n, l.batch, 0);
-    #endif
+#endif
     *(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
     print_to_stdout("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
@@ -371,57 +371,59 @@ void backward_region_layer(const region_layer l, network_state state)
 
 void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
 {
-    int i,j,n;
+    int i,j,n,k;
     float *predictions = l.output;
-    for (i = 0; i < l.w*l.h; ++i){
-        int row = i / l.w;
-        int col = i % l.w;
-        for(n = 0; n < l.n; ++n){
-            int index = i*l.n + n;
-            int p_index = index * (l.classes + 5) + 4;
-            float scale = predictions[p_index];
-            if(l.classfix == -1 && scale < .5) scale = 0;
-            int box_index = index * (l.classes + 5);
-            boxes[index] = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);
-            boxes[index].x *= w;
-            boxes[index].y *= h;
-            boxes[index].w *= w;
-            boxes[index].h *= h;
+    for (k = 0; k < l.batch; k++) {
+        for (i = 0; i < l.w*l.h; ++i){
+            int row = i / l.w;
+            int col = i % l.w;
+            for(n = 0; n < l.n; ++n){
+                int index = (k*l.w*l.h + i)*l.n + n;
+                int p_index = index * (l.classes + 5) + 4;
+                float scale = predictions[p_index];
+                if(l.classfix == -1 && scale < .5) scale = 0;
+                int box_index = index * (l.classes + 5);
+                boxes[index] = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);
+                boxes[index].x *= w;
+                boxes[index].y *= h;
+                boxes[index].w *= w;
+                boxes[index].h *= h;
 
-            int class_index = index * (l.classes + 5) + 5;
-            if(l.softmax_tree){
+                int class_index = index * (l.classes + 5) + 5;
+                if(l.softmax_tree){
 
-                hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);
-                int found = 0;
-                if(map){
-                    for(j = 0; j < 200; ++j){
-                        float prob = scale*predictions[class_index+map[j]];
-                        probs[index][j] = (prob > thresh) ? prob : 0;
+                    hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);
+                    int found = 0;
+                    if(map){
+                        for(j = 0; j < 200; ++j){
+                            float prob = scale*predictions[class_index+map[j]];
+                            probs[index][j] = (prob > thresh) ? prob : 0;
+                        }
+                    } else {
+                        for(j = l.classes - 1; j >= 0; --j){
+                            if(!found && predictions[class_index + j] > .5){
+                                found = 1;
+                            } else {
+                                predictions[class_index + j] = 0;
+                            }
+                            float prob = predictions[class_index+j];
+                            probs[index][j] = (scale > thresh) ? prob : 0;
+                        }
                     }
                 } else {
-                    for(j = l.classes - 1; j >= 0; --j){
-                        if(!found && predictions[class_index + j] > .5){
-                            found = 1;
-                        } else {
-                            predictions[class_index + j] = 0;
-                        }
-                        float prob = predictions[class_index+j];
-                        probs[index][j] = (scale > thresh) ? prob : 0;
+                    for(j = 0; j < l.classes; ++j){
+                        float prob = scale*predictions[class_index+j];
+                        probs[index][j] = (prob > thresh) ? prob : 0;
                     }
                 }
-            } else {
-                for(j = 0; j < l.classes; ++j){
-                    float prob = scale*predictions[class_index+j];
-                    probs[index][j] = (prob > thresh) ? prob : 0;
+                if(only_objectness){
+                    probs[index][0] = scale;
                 }
             }
-            if(only_objectness){
-                probs[index][0] = scale;
-            }
         }
+
     }
 }
-
 #ifdef GPU
 
 void forward_region_layer_gpu(const region_layer l, network_state state)

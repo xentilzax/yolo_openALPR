@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-COST_TYPE get_cost_type(char *s)
+COST_TYPE get_cost_type(const char *s)
 {
     if (strcmp(s, "sse")==0) return SSE;
     if (strcmp(s, "masked")==0) return MASKED;
     if (strcmp(s, "smooth")==0) return SMOOTH;
-    fprintf(stderr, "Couldn't find cost type %s, going with SSE\n", s);
+    print_to_stderr(stderr, "Couldn't find cost type %s, going with SSE\n", s);
     return SSE;
 }
 
@@ -31,7 +31,7 @@ char *get_cost_string(COST_TYPE a)
 
 cost_layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
 {
-    fprintf(stderr, "cost                                           %4d\n",  inputs);
+    print_to_stderr(stderr, "cost                                           %4d\n",  inputs);
     cost_layer l = {0};
     l.type = COST;
 
@@ -132,7 +132,7 @@ void forward_cost_layer_gpu(cost_layer l, network_state state)
         int n = (1-l.ratio) * l.batch*l.inputs;
         float thresh = l.delta[n];
         thresh = 0;
-        printf("%f\n", thresh);
+        print_to_stdout("%f\n", thresh);
         supp_ongpu(l.batch*l.inputs, thresh, l.delta_gpu, 1);
     }
 

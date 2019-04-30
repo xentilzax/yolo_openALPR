@@ -29,23 +29,21 @@ void check_error(cudaError_t status)
     //cudaDeviceSynchronize();
     cudaError_t status2 = cudaGetLastError();
     if (status != cudaSuccess)
-    {   
+    {
         const char *s = cudaGetErrorString(status);
         char buffer[256];
-        printf("CUDA Error: %s\n", s);
-        assert(0);
+        print_to_stdout("CUDA Error: %s\n", s);
         snprintf(buffer, 256, "CUDA Error: %s", s);
         error(buffer);
-    } 
+    }
     if (status2 != cudaSuccess)
-    {   
+    {
         const char *s = cudaGetErrorString(status);
         char buffer[256];
-        printf("CUDA Error Prev: %s\n", s);
-        assert(0);
+        print_to_stdout("CUDA Error Prev: %s\n", s);
         snprintf(buffer, 256, "CUDA Error Prev: %s", s);
         error(buffer);
-    } 
+    }
 }
 
 dim3 cuda_gridsize(size_t n){
@@ -57,7 +55,7 @@ dim3 cuda_gridsize(size_t n){
         y = (n-1)/(x*BLOCK) + 1;
     }
     dim3 d = {x, y, 1};
-    //printf("%ld %ld %ld %ld\n", n, x, y, x*y*BLOCK);
+    //print_to_stdout("%ld %ld %ld %ld\n", n, x, y, x*y*BLOCK);
     return d;
 }
 
@@ -70,10 +68,10 @@ cudaStream_t get_cuda_stream() {
         cudaError_t status = cudaStreamCreate(&streamsArray[i]);
         //cudaError_t status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);
         if (status != cudaSuccess) {
-            printf(" cudaStreamCreate error: %d \n", status);
+            print_to_stdout(" cudaStreamCreate error: %d \n", status);
             const char *s = cudaGetErrorString(status);
             char buffer[256];
-            printf("CUDA Error: %s\n", s);
+            print_to_stdout("CUDA Error: %s\n", s);
             status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamDefault);
             check_error(status);
         }
@@ -145,10 +143,10 @@ float cuda_compare(float *x_gpu, float *x, size_t n, char *s)
     float *tmp = calloc(n, sizeof(float));
     cuda_pull_array(x_gpu, tmp, n);
     //int i;
-    //for(i = 0; i < n; ++i) printf("%f %f\n", tmp[i], x[i]);
+    //for(i = 0; i < n; ++i) print_to_stdout("%f %f\n", tmp[i], x[i]);
     axpy_cpu(n, -1, x, 1, tmp, 1);
     float err = dot_cpu(n, tmp, 1, tmp, 1);
-    printf("Error %s: %f\n", s, sqrt(err/n));
+    print_to_stdout("Error %s: %f\n", s, sqrt(err/n));
     free(tmp);
     return err;
 }

@@ -1,5 +1,7 @@
 #ifndef BLAS_H
 #define BLAS_H
+
+
 void flatten(float *x, int size, int layers, int batch, int forward);
 void pm(int M, int N, float *A);
 float *random_matrix(int rows, int cols);
@@ -86,6 +88,7 @@ void adam_update_gpu(float *w, float *d, float *m, float *v, float B1, float B2,
 void flatten_ongpu(float *x, int spatial, int layers, int batch, int forward, float *out);
 
 void upsample_gpu(float *in, int w, int h, int c, int batch, int stride, int forward, float scale, float *out);
+
 
 #endif
 #endif

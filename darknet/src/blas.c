@@ -11,8 +11,8 @@ void reorg_cpu(float *x, int out_w, int out_h, int out_c, int batch, int stride,
     int b,i,j,k;
     int in_c = out_c/(stride*stride);
 
-    //printf("\n out_c = %d, out_w = %d, out_h = %d, stride = %d, forward = %d \n", out_c, out_w, out_h, stride, forward);
-    //printf("  in_c = %d,  in_w = %d,  in_h = %d \n", in_c, out_w*stride, out_h*stride);
+    //print_to_stdout("\n out_c = %d, out_w = %d, out_h = %d, stride = %d, forward = %d \n", out_c, out_w, out_h, stride, forward);
+    //print_to_stdout("  in_c = %d,  in_w = %d,  in_h = %d \n", in_c, out_w*stride, out_h*stride);
 
     for(b = 0; b < batch; ++b){
         for(k = 0; k < out_c; ++k){

@@ -40,7 +40,7 @@ detection_layer make_detection_layer(int batch, int inputs, int n, int side, int
     l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 #endif
 
-    fprintf(stderr, "Detection Layer\n");
+    print_to_stderr(stderr, "Detection Layer\n");
     srand(0);
 
     return l;
@@ -155,7 +155,7 @@ void forward_detection_layer(const detection_layer l, network_state state)
                 }
                 float iou  = box_iou(out, truth);
 
-                //printf("%d,", best_index);
+                //print_to_stdout("%d,", best_index);
                 int p_index = index + locations*l.classes + i*l.n + best_index;
                 *(l.cost) -= l.noobject_scale * pow(l.output[p_index], 2);
                 *(l.cost) += l.object_scale * pow(1-l.output[p_index], 2);
@@ -211,7 +211,7 @@ void forward_detection_layer(const detection_layer l, network_state state)
         *(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
 
 
-        printf("Detection Avg IOU: %f, Pos Cat: %f, All Cat: %f, Pos Obj: %f, Any Obj: %f, count: %d\n", avg_iou/count, avg_cat/count, avg_allcat/(count*l.classes), avg_obj/count, avg_anyobj/(l.batch*locations*l.n), count);
+        print_to_stdout("Detection Avg IOU: %f, Pos Cat: %f, All Cat: %f, Pos Obj: %f, Any Obj: %f, count: %d\n", avg_iou/count, avg_cat/count, avg_allcat/(count*l.classes), avg_obj/count, avg_anyobj/(l.batch*locations*l.n), count);
         //if(l.reorg) reorg(l.delta, l.w*l.h, size*l.n, l.batch, 0);
     }
 }

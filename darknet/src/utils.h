@@ -2,6 +2,11 @@
 #define UTILS_H
 #include <stdio.h>
 #include <time.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "list.h"
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
@@ -12,21 +17,24 @@
 #define TWO_PI 6.2831853071795864769252866
 
 #ifdef YOLODLL_EXPORTS
-#if defined(_MSC_VER)
-#define YOLODLL_API __declspec(dllexport) 
+    #if defined(_MSC_VER)
+        #define YOLODLL_API __declspec(dllexport)
+    #else
+        #define YOLODLL_API __attribute__((visibility("default")))
+    #endif
 #else
-#define YOLODLL_API __attribute__((visibility("default")))
-#endif
-#else
-#if defined(_MSC_VER)
-#define YOLODLL_API
-#else
-#define YOLODLL_API
-#endif
+    #if defined(_MSC_VER)
+        #define YOLODLL_API
+    #else
+        #define YOLODLL_API
+    #endif
 #endif
 
+extern int (*print_to_stdout)(const char* str, ...);
+extern int (*print_to_stderr)(FILE* stream, const char* str, ...);
+
 double what_time_is_it_now();
-int *read_map(char *filename);
+int *read_map(const char *filename);
 void shuffle(void *arr, size_t n, size_t size);
 void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections);
 YOLODLL_API void free_ptrs(void **ptrs, int n);
@@ -39,11 +47,11 @@ void read_all(int fd, char *buffer, size_t bytes);
 void write_all(int fd, char *buffer, size_t bytes);
 int read_all_fail(int fd, char *buffer, size_t bytes);
 int write_all_fail(int fd, char *buffer, size_t bytes);
-void find_replace(char *str, char *orig, char *rep, char *output);
-void replace_image_to_label(char *input_path, char *output_path);
+void find_replace(const char *str, const char *orig, const char *rep, char *output);
+void replace_image_to_label(const char *input_path, char *output_path);
 void error(const char *s);
 void malloc_error();
-void file_error(char *s);
+void file_error(const char *s);
 void strip(char *s);
 void strip_args(char *s);
 void strip_char(char *s, char bad);
@@ -84,6 +92,8 @@ unsigned int random_gen();
 float random_float();
 float rand_uniform_strong(float min, float max);
 int int_index(int *a, int val, int n);
-
+#ifdef __cplusplus
+}
+#endif
 #endif
 

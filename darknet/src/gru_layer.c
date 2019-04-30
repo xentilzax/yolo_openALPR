@@ -28,7 +28,7 @@ static void increment_layer(layer *l, int steps)
 
 layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_normalize)
 {
-    fprintf(stderr, "GRU Layer: %d inputs, %d outputs\n", inputs, outputs);
+    print_to_stderr(stderr, "GRU Layer: %d inputs, %d outputs\n", inputs, outputs);
     batch = batch / steps;
     layer l = {0};
     l.batch = batch;
@@ -37,36 +37,36 @@ layer make_gru_layer(int batch, int inputs, int outputs, int steps, int batch_no
     l.inputs = inputs;
 
     l.input_z_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.input_z_layer) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize);
     l.input_z_layer->batch = batch;
 
     l.state_z_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.state_z_layer) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize);
     l.state_z_layer->batch = batch;
 
 
 
     l.input_r_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.input_r_layer) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize);
     l.input_r_layer->batch = batch;
 
     l.state_r_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.state_r_layer) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize);
     l.state_r_layer->batch = batch;
 
 
 
     l.input_h_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.input_h_layer) = make_connected_layer(batch*steps, inputs, outputs, LINEAR, batch_normalize);
     l.input_h_layer->batch = batch;
 
     l.state_h_layer = malloc(sizeof(layer));
-    fprintf(stderr, "\t\t");
+    print_to_stderr(stderr, "\t\t");
     *(l.state_h_layer) = make_connected_layer(batch*steps, outputs, outputs, LINEAR, batch_normalize);
     l.state_h_layer->batch = batch;
 

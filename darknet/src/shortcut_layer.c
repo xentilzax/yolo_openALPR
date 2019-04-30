@@ -6,7 +6,7 @@
 
 layer make_shortcut_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2)
 {
-    fprintf(stderr,"Shortcut Layer: %d\n", index);
+    print_to_stderr(stderr,"Shortcut Layer: %d\n", index);
     layer l = {0};
     l.type = SHORTCUT;
     l.batch = batch;

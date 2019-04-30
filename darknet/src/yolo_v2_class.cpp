@@ -118,8 +118,8 @@ void set_pointer_fprintf(PointerToFprintf ptr)
     print_to_stderr = ptr;
 }
 
-
-YOLODLL_API Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id) : cur_gpu_id(gpu_id)
+YOLODLL_API Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id, int batchSize)
+    : cur_gpu_id(gpu_id)
 {
     wait_stream = 0;
     int old_gpu_index;
@@ -142,13 +142,16 @@ YOLODLL_API Detector::Detector(std::string cfg_filename, std::string weight_file
     char *cfgfile = const_cast<char *>(cfg_filename.data());
     char *weightfile = const_cast<char *>(weight_filename.data());
 
-    net = parse_network_cfg_custom(cfgfile, 1);
+    net = parse_network_cfg_custom(cfgfile, batchSize);
     if (weightfile) {
         load_weights(&net, weightfile);
     }
-    set_batch_network(&net, 1);
+    set_batch_network(&net, batchSize);
     net.gpu_index = cur_gpu_id;
     fuse_conv_batchnorm(net);
+
+    imageDataSize = net.w * net.h * net.c;
+    imageBlob = std::unique_ptr<float[]>(new float[imageDataSize*batchSize]);
 
     layer l = net.layers[net.n - 1];
     int j;
@@ -208,14 +211,16 @@ YOLODLL_API std::vector<bbox_t> Detector::detect(std::string image_filename, flo
 {
     std::shared_ptr<image_t> image_ptr(new image_t, [](image_t *img) { if (img->data) free(img->data); delete img; });
     *image_ptr = load_image(image_filename);
-    return detect(*image_ptr, thresh, use_mean);
+    std::vector<std::shared_ptr<image_t>> imageBatch;
+    imageBatch.push_back(image_ptr);
+    return detect(imageBatch, thresh, use_mean)[0];
 }
 
 static image load_image_stb(char *filename, int channels)
 {
     int w, h, c;
     unsigned char *data = stbi_load(filename, &w, &h, &c, channels);
-    if (!data) 
+    if (!data)
         throw std::runtime_error("file not found");
     if (channels) c = channels;
     int i, j, k;
@@ -255,7 +260,29 @@ YOLODLL_API void Detector::free_image(image_t m)
     }
 }
 
-YOLODLL_API std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
+#ifdef OPENCV
+std::vector<std::vector<bbox_t>> Detector::detect(const std::vector<cv::Mat> & batchImages, float thresh, bool use_mean)
+{
+    if(batchImages.size() == 0)
+        throw std::runtime_error("Image batch is empty");
+
+    std::vector<std::shared_ptr<image_t>> imageBatch;
+
+    for(int i = 0; i < batchImages.size(); i++) {
+        if(batchImages[i].data == NULL)
+            throw std::runtime_error("Image is empty");
+
+        auto image_ptr = mat_to_image_resize(batchImages[i]);
+        imageBatch.push_back(image_ptr);
+    }
+
+    std::vector<std::vector<bbox_t>> batchBboxes = detect_resized(imageBatch, thresh, use_mean);
+    return batchBboxes;
+
+}
+#endif
+
+YOLODLL_API std::vector<std::vector<bbox_t>> Detector::detect(const std::vector<std::shared_ptr<image_t>>& imgBatch, float thresh, bool use_mean)
 {
     detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
     network &net = detector_gpu.net;
@@ -271,26 +298,31 @@ YOLODLL_API std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool
 
     //float nms = .4;
 
-    image im;
-    im.c = img.c;
-    im.data = img.data;
-    im.h = img.h;
-    im.w = img.w;
+    if(imgBatch.size() <= 0)
+        throw std::runtime_error("Image batch is empty");
 
-    image sized;
-    
-    if (net.w == im.w && net.h == im.h) {
-        sized = make_image(im.w, im.h, im.c);
-        memcpy(sized.data, im.data, im.w*im.h*im.c * sizeof(float));
+    //copy images to blob
+    for(int i = 0; i < imgBatch.size(); i++) {
+        if (net.w == imgBatch[i]->w && net.h == imgBatch[i]->h) {
+            memcpy(imageBlob.get() + imageDataSize*i, imgBatch[i]->data, imageDataSize * sizeof(float));
+        } else {
+            std::shared_ptr<image_t> imgPtr = imgBatch[i];
+            const image_t imgt = *imgPtr.get();
+            image img;
+            img.c = imgt.c;
+            img.h = imgt.h;
+            img.w = imgt.w;
+            img.data = imgt.data;
+
+            image sized = resize_image(img, net.w, net.h);
+            memcpy(imageBlob.get() + imageDataSize*i, sized.data, imageDataSize * sizeof(float));
+            if(sized.data)
+                free(sized.data);
+        }
     }
-    else
-        sized = resize_image(im, net.w, net.h);
 
     layer l = net.layers[net.n - 1];
-
-    float *X = sized.data;
-
-    float *prediction = network_predict(net, X);
+    float *prediction = network_predict(net, imageBlob.get());
 
     if (use_mean) {
         memcpy(detector_gpu.predictions[detector_gpu.demo_index], prediction, l.outputs * sizeof(float));
@@ -304,45 +336,51 @@ YOLODLL_API std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool
     int nboxes = 0;
     int letterbox = 0;
     float hier_thresh = 0.5;
-    detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
-    if (nms) do_nms_sort(dets, nboxes, l.classes, nms);
+    detection *dets = get_network_boxes(&net, 1, 1, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
 
-    std::vector<bbox_t> bbox_vec;
+    size_t stepDets = nboxes / l.batch;
+    std::vector<std::vector<bbox_t>> bboxByImages;
 
-    for (size_t i = 0; i < nboxes; ++i) {
-        box b = dets[i].bbox;
-        int const obj_id = max_index(dets[i].prob, l.classes);
-        float const prob = dets[i].prob[obj_id];
-        
-        if (prob > thresh) 
-        {
-            bbox_t bbox;
-            bbox.x = std::max((double)0, (b.x - b.w / 2.)*im.w);
-            bbox.y = std::max((double)0, (b.y - b.h / 2.)*im.h);
-            bbox.w = b.w*im.w;
-            bbox.h = b.h*im.h;
-            bbox.obj_id = obj_id;
-            bbox.prob = prob;
-            bbox.track_id = 0;
+    for(int k = 0; k < l.batch; k++) {
+        detection* ptrDets = dets + k*stepDets;
+        if (nms)
+            do_nms_sort(ptrDets, stepDets, l.classes, nms);
 
-            bbox_vec.push_back(bbox);
+        std::vector<bbox_t> bbox_vec;
+
+        for (size_t i = 0; i < stepDets; ++i) {
+            box b = ptrDets[i].bbox;
+            int const obj_id = max_index(ptrDets[i].prob, l.classes);
+            float const prob = ptrDets[i].prob[obj_id];
+
+            if (prob > thresh)
+            {
+                bbox_t bbox;
+                bbox.x = std::max((double)0, (b.x - b.w / 2.)*imgBatch[k]->w);
+                bbox.y = std::max((double)0, (b.y - b.h / 2.)*imgBatch[k]->h);
+                bbox.w = b.w*imgBatch[k]->w;
+                bbox.h = b.h*imgBatch[k]->h;
+                bbox.obj_id = obj_id;
+                bbox.prob = prob;
+                bbox.track_id = 0;
+
+                bbox_vec.push_back(bbox);
+            }
         }
+        bboxByImages.push_back(bbox_vec);
     }
-
     free_detections(dets, nboxes);
-    if(sized.data)
-        free(sized.data);
 
 #ifdef GPU
     if (cur_gpu_id != old_gpu_index)
         cudaSetDevice(old_gpu_index);
 #endif
 
-    return bbox_vec;
+    return bboxByImages;
 }
 
 YOLODLL_API std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history, 
-    int const frames_story, int const max_dist)
+                                                      int const frames_story, int const max_dist)
 {
     detector_gpu_t &det_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 
@@ -376,8 +414,8 @@ YOLODLL_API std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bb
                 }
             }
 
-            bool track_id_absent = !std::any_of(cur_bbox_vec.begin(), cur_bbox_vec.end(), 
-                [&i](bbox_t const& b) { return b.track_id == i.track_id && b.obj_id == i.obj_id; });
+            bool track_id_absent = !std::any_of(cur_bbox_vec.begin(), cur_bbox_vec.end(),
+                                                [&i](bbox_t const& b) { return b.track_id == i.track_id && b.obj_id == i.obj_id; });
 
             if (cur_index >= 0 && track_id_absent){
                 cur_bbox_vec[cur_index].track_id = i.track_id;

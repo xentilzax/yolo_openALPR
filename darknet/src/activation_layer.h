@@ -15,5 +15,6 @@ void forward_activation_layer_gpu(layer l, network_state state);
 void backward_activation_layer_gpu(layer l, network_state state);
 #endif
 
+
 #endif
 

@@ -146,7 +146,7 @@ __global__ void adam_kernel(int N, float *x, float *m, float *v, float B1, float
     if (index >= N) return;
     
     x[index] = x[index] - (rate * sqrtf(1.F-powf(B2, t)) / (1.F-powf(B1, t)) * m[index] / (sqrtf(v[index]) + eps));
-    //if(index == 0) printf("%f %f %f %f\n", m[index], v[index], (rate * sqrtf(1.F-powf(B2, t)) / (1.F-powf(B1, t)) * m[index] / (sqrt(v[index]) + eps)));
+    //if(index == 0) print_to_stdout("%f %f %f %f\n", m[index], v[index], (rate * sqrtf(1.F-powf(B2, t)) / (1.F-powf(B1, t)) * m[index] / (sqrt(v[index]) + eps)));
 }
 
 extern "C" void adam_gpu(int n, float *x, float *m, float *v, float B1, float B2, float rate, float eps, int t)
@@ -362,12 +362,12 @@ __global__ void reorg_kernel(int N, float *x, int w, int h, int c, int batch, in
     int offset = in_c / out_c;
     int w2 = in_w*stride + offset % stride;
     int h2 = in_h*stride + offset / stride;
-    //printf("%d\n", offset);
+    //print_to_stdout("%d\n", offset);
     int out_index = w2 + w*stride*(h2 + h*stride*(c2 + out_c*b));
 
-   // printf("%d %d %d\n", w2, h2, c2);
-    //printf("%d %d\n", in_index, out_index);
-    //if(out_index >= N || out_index < 0) printf("bad bad bad \n");
+   // print_to_stdout("%d %d %d\n", w2, h2, c2);
+    //print_to_stdout("%d %d\n", in_index, out_index);
+    //if(out_index >= N || out_index < 0) print_to_stdout("bad bad bad \n");
 
     if(forward) out[out_index] = x[in_index];
     else out[in_index] = x[out_index];
