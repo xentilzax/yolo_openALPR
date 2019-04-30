@@ -102,6 +102,8 @@ public:
         batchBoxes = detect(batchImages, thresh, use_mean);
         if(batchBoxes.size() == 1)
             return batchBoxes[0];
+        else
+            return std::vector<bbox_t>();
     }
 
     std::shared_ptr<image_t> mat_to_image_resize(const cv::Mat mat) const
