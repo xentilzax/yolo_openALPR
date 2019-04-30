@@ -1,5 +1,5 @@
-GPU=1
-CUDNN=1
+GPU=0
+CUDNN=0
 CUDNN_HALF=0
 OPENCV=1
 OPENCV3=1
@@ -55,7 +55,7 @@ COMMON=
 CFLAGS=-Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas
 
 ifeq ($(DEBUG), 1) 
-OPTS= -O0 -g
+OPTS= -Og -g
 else
 ifeq ($(AVX), 1) 
 CFLAGS+= -ffp-contract=fast -mavx -msse4.1 -msse4a
@@ -88,10 +88,10 @@ LDFLAGS += \
 #    -l"opencv_core"
 else
 LDFLAGS += \
-    -l"opencv_video" \
-    -l"opencv_highgui" \
-    -l"opencv_imgproc" \
-    -l"opencv_core"
+    -l:libopencv_video.so.2.4 \
+    -l:libopencv_highgui.so.2.4 \
+    -l:libopencv_imgproc.so.2.4 \
+    -l:libopencv_core.so.2.4
 endif
 endif
 
