@@ -1,0 +1,85 @@
+OPENCV=1
+OPENCV3=1
+
+DEBUG=1
+
+
+CPP=g++
+CC=gcc
+
+SRC=	scr/test.cpp \
+	src/cJSON.cpp \
+	src/config.cpp
+	
+		
+TEST_OBJ= src/test.o \
+	  src/cJSON.o
+	
+TEXT_EXE=test
+
+WRAP_ALPR_LIB=inex_alpr.so
+YOLO_DETECTOR_LIB=inex_yolo.so
+SIMPLE_DETECTOR_LIB=inex_simple.so
+
+COMMON_LDFLAGS= -lm -pthread
+LPR_LDFLAGS= $(COMMON_LDFLAGS)
+
+#add OpenALPR module
+ALPR_LDFLAGS= -L. -l:$(WRAP_ALPR_LIB) -l:libopenalpr.so 
+LPR_LDFLAGS+= $(ALPR_LDFLAGS) 
+
+#add YOLO module
+LPR_LDFLAGS+= -L. -l:$(YOLO_DETECTOR_LIB) -L../darknet -l:nn.so 
+
+#add service modules
+LPR_LDFLAGS+= -L. -l:$(SIMPLE_DETECTOR_LIB)
+
+
+OPTS=-Ofast
+COMMON= -std=c++11
+CFLAGS= -Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas 
+CFLAGS+=$(OPTS)
+
+ifeq ($(DEBUG), 1) 
+OPTS= -O0 -g
+endif
+
+
+#OpenCV
+ifeq ($(OPENCV), 1) 
+CFLAGS+= -DOPENCV
+ifeq ($(OPENCV3), 1) 
+OCV_LDFLAGS = \
+    -l:libopencv_videoio.so.3.3 \
+    -l:libopencv_video.so.3.3 \
+    -l:libopencv_highgui.so.3.3 \
+    -l:libopencv_imgproc.so.3.3 \
+    -l:libopencv_imgcodecs.so.3.3 \
+    -l:libopencv_core.so.3.3
+else
+OCV_LDFLAGS = \
+    -l"opencv_video" \
+    -l"opencv_highgui" \
+    -l"opencv_imgproc" \
+    -l"opencv_core"
+endif
+endif
+
+
+DEPS = $(wildcard src/*.hpp) Makefile
+
+CFLAGS+= -fPIC
+LPR_LDFLAGS+= -Wl,-rpath='$$ORIGIN'
+INCLUDES=-I /usr/include -I ../darknet/src -I ./src
+
+
+all:$(TEXT_EXE)
+
+$(TEXT_EXE): $(TEST_OBJ)
+	$(CPP) $(TEST_OBJ) -o $@ $(COMMON) $(CFLAGS) $(OCV_LDFLAGS) $(LPR_LDFLAGS)
+	
+src/%.o: src/%.cpp
+	$(CPP) $(COMMON) $(CFLAGS) $(INCLUDES) -c -o $@ $^
+
+clean:
+	rm -rf src/test.o $(TEXT_EXE) 
