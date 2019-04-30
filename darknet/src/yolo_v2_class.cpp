@@ -1,5 +1,6 @@
 #include "yolo_v2_class.hpp"
 
+
 #include "network.h"
 
 extern "C" {
@@ -10,11 +11,9 @@ extern "C" {
 #include "parser.h"
 #include "box.h"
 #include "image.h"
-#include "demo.h"
 #include "option_list.h"
 #include "stb_image.h"
 }
-//#include <sys/time.h>
 
 #include <vector>
 #include <iostream>
@@ -22,7 +21,6 @@ extern "C" {
 
 #define FRAMES 3
 
-//static Detector* detector = NULL;
 static std::unique_ptr<Detector> detector;
 
 int init(const char *configurationFilename, const char *weightsFilename, int gpu) 
@@ -86,7 +84,7 @@ int get_device_name(int gpu, char* deviceName) {
 void check_cuda(cudaError_t status) {
     if (status != cudaSuccess) {
         const char *s = cudaGetErrorString(status);
-        printf("CUDA Error Prev: %s\n", s);
+        print_to_stdout("CUDA Error Prev: %s\n", s);
     }
 }
 #endif
@@ -99,6 +97,27 @@ struct detector_gpu_t {
     int demo_index;
     unsigned int *track_id;
 };
+
+PointerToPrintf get_pointer_printf()
+{
+    return print_to_stdout;
+}
+
+PointerToFprintf get_pointer_fprintf()
+{
+    return print_to_stderr;
+}
+
+void set_pointer_printf(PointerToPrintf ptr)
+{
+    print_to_stdout = ptr;
+}
+
+void set_pointer_fprintf(PointerToFprintf ptr)
+{
+    print_to_stderr = ptr;
+}
+
 
 YOLODLL_API Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id) : cur_gpu_id(gpu_id)
 {
@@ -114,7 +133,7 @@ YOLODLL_API Detector::Detector(std::string cfg_filename, std::string weight_file
 #ifdef GPU
     //check_cuda( cudaSetDevice(cur_gpu_id) );
     cuda_set_device(cur_gpu_id);
-    printf(" Used GPU %d \n", cur_gpu_id);
+    print_to_stdout(" Used GPU %d \n", cur_gpu_id);
 #endif
     network &net = detector_gpu.net;
     net.gpu_index = cur_gpu_id;

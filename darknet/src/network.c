@@ -33,7 +33,7 @@
 
 network *load_network_custom(char *cfg, char *weights, int clear, int batch)
 {
-    printf(" Try to load cfg: %s, weights: %s, clear = %d \n", cfg, weights, clear);
+    print_to_stdout(" Try to load cfg: %s, weights: %s, clear = %d \n", cfg, weights, clear);
     network *net = calloc(1, sizeof(network));
     *net = parse_network_cfg_custom(cfg, batch);
     if (weights && weights[0] != 0) {
@@ -116,7 +116,7 @@ float get_current_rate(network net)
         case SIG:
             return net.learning_rate * (1./(1.+exp(net.gamma*(batch_num - net.step))));
         default:
-            fprintf(stderr, "Policy is weird!\n");
+            print_to_stderr(stderr, "Policy is weird!\n");
             return net.learning_rate;
     }
 }
@@ -371,7 +371,7 @@ void set_batch_network(network *net, int b)
             size_t total_byte;
             check_error(cudaMemGetInfo(&free_byte, &total_byte));
             if (l->workspace_size > free_byte || l->workspace_size >= total_byte / 2) {
-                printf(" used slow CUDNN algo without Workspace! \n");
+                print_to_stdout(" used slow CUDNN algo without Workspace! \n");
                 cudnn_convolutional_setup(l, cudnn_smallest);
                 l->workspace_size = get_workspace_size(*l);
             }
@@ -401,11 +401,11 @@ int resize_network(network *net, int w, int h)
     net->h = h;
     int inputs = 0;
     size_t workspace_size = 0;
-    //fprintf(stderr, "Resizing to %d x %d...\n", w, h);
+    //print_to_stderr(stderr, "Resizing to %d x %d...\n", w, h);
     //fflush(stderr);
     for (i = 0; i < net->n; ++i){
         layer l = net->layers[i];
-        //printf(" %d: layer = %d,", i, l.type);
+        //print_to_stdout(" %d: layer = %d,", i, l.type);
         if(l.type == CONVOLUTIONAL){
             resize_convolutional_layer(&l, w, h);
         }else if(l.type == CROP){
@@ -431,7 +431,7 @@ int resize_network(network *net, int w, int h)
         }else if(l.type == COST){
             resize_cost_layer(&l, inputs);
         }else{
-            fprintf(stderr, "Resizing type %d \n", (int)l.type);
+            print_to_stderr(stderr, "Resizing type %d \n", (int)l.type);
             error("Cannot resize this type of layer");
         }
         if(l.workspace_size > workspace_size) workspace_size = l.workspace_size;
@@ -443,9 +443,9 @@ int resize_network(network *net, int w, int h)
     }
 #ifdef GPU
     if(gpu_index >= 0){
-        printf(" try to allocate workspace = %zu * sizeof(float), ", workspace_size / sizeof(float) + 1);
+        print_to_stdout(" try to allocate workspace = %zu * sizeof(float), ", workspace_size / sizeof(float) + 1);
         net->workspace = cuda_make_array(0, workspace_size/sizeof(float) + 1);
-        printf(" CUDA allocate done! \n");
+        print_to_stdout(" CUDA allocate done! \n");
     }else {
         free(net->workspace);
         net->workspace = calloc(1, workspace_size);
@@ -454,7 +454,7 @@ int resize_network(network *net, int w, int h)
     free(net->workspace);
     net->workspace = calloc(1, workspace_size);
 #endif
-    //fprintf(stderr, " Done!\n");
+    //print_to_stderr(stderr, " Done!\n");
     return 0;
 }
 
@@ -478,7 +478,7 @@ detection_layer get_network_detection_layer(network net)
             return net.layers[i];
         }
     }
-    fprintf(stderr, "Detection layer not found!!\n");
+    print_to_stderr(stderr, "Detection layer not found!!\n");
     detection_layer l = {0};
     return l;
 }
@@ -616,7 +616,7 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
             dets += count;
             if (prev_classes < 0) prev_classes = l.classes;
             else if (prev_classes != l.classes) {
-                printf(" Error: Different [yolo] layers have different number of classes = %d and %d - check your cfg-file! \n",
+                print_to_stdout(" Error: Different [yolo] layers have different number of classes = %d and %d - check your cfg-file! \n",
                     prev_classes, l.classes);
             }
         }
@@ -719,11 +719,11 @@ void print_network(network net)
         int n = l.outputs;
         float mean = mean_array(output, n);
         float vari = variance_array(output, n);
-        fprintf(stderr, "Layer %d - Mean: %f, Variance: %f\n",i,mean, vari);
+        print_to_stderr(stderr, "Layer %d - Mean: %f, Variance: %f\n",i,mean, vari);
         if(n > 100) n = 100;
-        for(j = 0; j < n; ++j) fprintf(stderr, "%f, ", output[j]);
-        if(n == 100)fprintf(stderr,".....\n");
-        fprintf(stderr, "\n");
+        for(j = 0; j < n; ++j) print_to_stderr(stderr, "%f, ", output[j]);
+        if(n == 100)print_to_stderr(stderr,".....\n");
+        print_to_stderr(stderr, "\n");
     }
 }
 
@@ -746,10 +746,10 @@ void compare_networks(network n1, network n2, data test)
             else ++a;
         }
     }
-    printf("%5d %5d\n%5d %5d\n", a, b, c, d);
+    print_to_stdout("%5d %5d\n%5d %5d\n", a, b, c, d);
     float num = pow((abs(b - c) - 1.), 2.);
     float den = b + c;
-    printf("%f\n", num/den); 
+    print_to_stdout("%f\n", num/den); 
 }
 
 float network_accuracy(network net, data d)
@@ -817,7 +817,7 @@ void fuse_conv_batchnorm(network net)
         layer *l = &net.layers[j];
 
         if (l->type == CONVOLUTIONAL) {
-            //printf(" Merges Convolutional-%d and batch_norm \n", j);
+            //print_to_stdout(" Merges Convolutional-%d and batch_norm \n", j);
 
             if (l->batch_normalize) {
                 int f;
@@ -843,7 +843,7 @@ void fuse_conv_batchnorm(network net)
             }
         }
         else {
-            //printf(" Fusion skip layer type: %d \n", l->type);
+            //print_to_stdout(" Fusion skip layer type: %d \n", l->type);
         }
     }
 }

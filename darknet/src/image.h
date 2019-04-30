@@ -8,6 +8,7 @@
 #include <math.h>
 #include "box.h"
 
+
 typedef struct {
 	int w;
 	int h;
@@ -29,9 +30,11 @@ void scale_image(image m, float s);
 image crop_image(image im, int dx, int dy, int w, int h);
 image random_crop_image(image im, int w, int h);
 image random_augment_image(image im, float angle, float aspect, int low, int high, int size);
+image image_transform(const image im, int w, int h, const float* T, const float* v, float hue, float saturation, float exposure);
 void random_distort_image(image im, float hue, float saturation, float exposure);
 YOLODLL_API image resize_image(image im, int w, int h);
 void fill_image(image m, float s);
+void resize_saving_aspect_ratio(int* new_w, int* new_h, int im_w, int im_h, int w, int h);
 void letterbox_image_into(image im, int w, int h, image boxed);
 YOLODLL_API image letterbox_image(image im, int w, int h);
 image resize_min(image im, int min);
@@ -81,11 +84,13 @@ image **load_alphabet();
 //float get_pixel_extend(image m, int x, int y, int c);
 //void set_pixel(image m, int x, int y, int c, float val);
 //void add_pixel(image m, int x, int y, int c, float val);
-float bilinear_interpolate(image im, float x, float y, int c);
+float bilinear_interpolate(const image im, float x, float y, int c);
 
 image get_image_layer(image m, int l);
 
 YOLODLL_API void free_image(image m);
 void test_resize(char *filename);
+
+
 #endif
 

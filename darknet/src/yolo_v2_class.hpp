@@ -52,6 +52,14 @@ extern "C" YOLODLL_API int dispose();
 extern "C" YOLODLL_API int get_device_count();
 extern "C" YOLODLL_API int get_device_name(int gpu, char* deviceName);
 
+typedef int (*PointerToPrintf)(const char*, ...);
+typedef int (*PointerToFprintf)(FILE*, const char*, ...);
+
+extern "C" YOLODLL_API PointerToPrintf get_pointer_printf();
+extern "C" YOLODLL_API PointerToFprintf get_pointer_fprintf();
+extern "C" YOLODLL_API void set_pointer_printf(PointerToPrintf);
+extern "C" YOLODLL_API void set_pointer_fprintf(PointerToFprintf);
+
 class Detector {
     std::shared_ptr<void> detector_gpu_ptr;
     std::deque<std::vector<bbox_t>> prev_bbox_vec_deque;

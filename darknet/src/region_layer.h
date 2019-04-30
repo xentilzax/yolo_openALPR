@@ -4,6 +4,7 @@
 #include "layer.h"
 #include "network.h"
 
+
 typedef layer region_layer;
 
 region_layer make_region_layer(int batch, int h, int w, int n, int classes, int coords, int max_boxes);

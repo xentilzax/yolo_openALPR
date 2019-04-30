@@ -45,7 +45,7 @@ region_layer make_region_layer(int batch, int w, int h, int n, int classes, int 
     l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 #endif
 
-    fprintf(stderr, "detection\n");
+    print_to_stderr(stderr, "detection\n");
     srand(0);
 
     return l;
@@ -80,11 +80,13 @@ box get_region_box(float *x, float *biases, int n, int index, int i, int j, int 
     box b;
     b.x = (i + logistic_activate(x[index + 0])) / w;
     b.y = (j + logistic_activate(x[index + 1])) / h;
-    b.w = exp(x[index + 2]) * biases[2*n];
-    b.h = exp(x[index + 3]) * biases[2*n+1];
     if(DOABS){
         b.w = exp(x[index + 2]) * biases[2*n]   / w;
         b.h = exp(x[index + 3]) * biases[2*n+1] / h;
+    } else {
+        b.w = exp(x[index + 2]) * biases[2*n];
+        b.h = exp(x[index + 3]) * biases[2*n+1];
+
     }
     return b;
 }
@@ -297,7 +299,7 @@ void forward_region_layer(const region_layer l, network_state state)
             box truth = float_to_box(state.truth + t*5 + b*l.truths);
             int class_id = state.truth[t * 5 + b*l.truths + 4];
             if (class_id >= l.classes) {
-                printf(" Warning: in txt-labels class_id=%d >= classes=%d in cfg-file. In txt-labels class_id should be [from 0 to %d] \n", class_id, l.classes, l.classes-1);
+                print_to_stdout(" Warning: in txt-labels class_id=%d >= classes=%d in cfg-file. In txt-labels class_id should be [from 0 to %d] \n", class_id, l.classes, l.classes-1);
                 getchar();
                 continue; // if label contains class_id more than number of classes in the cfg-file
             }
@@ -308,23 +310,24 @@ void forward_region_layer(const region_layer l, network_state state)
             int best_n = 0;
             i = (truth.x * l.w);
             j = (truth.y * l.h);
-            //printf("%d %f %d %f\n", i, truth.x*l.w, j, truth.y*l.h);
+            //print_to_stdout("%d %f %d %f\n", i, truth.x*l.w, j, truth.y*l.h);
             box truth_shift = truth;
             truth_shift.x = 0;
             truth_shift.y = 0;
-            //printf("index %d %d\n",i, j);
+            //print_to_stdout("index %d %d\n",i, j);
             for(n = 0; n < l.n; ++n){
                 int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
                 box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
                 if(l.bias_match){
-                    pred.w = l.biases[2*n];
-                    pred.h = l.biases[2*n+1];
                     if(DOABS){
                         pred.w = l.biases[2*n]/l.w;
                         pred.h = l.biases[2*n+1]/l.h;
+                    } else {
+                        pred.w = l.biases[2*n];
+                        pred.h = l.biases[2*n+1];
                     }
                 }
-                //printf("pred: (%f, %f) %f x %f\n", pred.x, pred.y, pred.w, pred.h);
+                //print_to_stdout("pred: (%f, %f) %f x %f\n", pred.x, pred.y, pred.w, pred.h);
                 pred.x = 0;
                 pred.y = 0;
                 float iou = box_iou(pred, truth_shift);
@@ -334,7 +337,7 @@ void forward_region_layer(const region_layer l, network_state state)
                     best_n = n;
                 }
             }
-            //printf("%d %f (%f, %f) %f x %f\n", best_n, best_iou, truth.x, truth.y, truth.w, truth.h);
+            //print_to_stdout("%d %f (%f, %f) %f x %f\n", best_n, best_iou, truth.x, truth.y, truth.w, truth.h);
 
             float iou = delta_region_box(truth, l.output, l.biases, best_n, best_index, i, j, l.w, l.h, l.delta, l.coord_scale);
             if(iou > .5) recall += 1;
@@ -353,12 +356,12 @@ void forward_region_layer(const region_layer l, network_state state)
             ++class_count;
         }
     }
-    //printf("\n");
+    //print_to_stdout("\n");
     #ifndef GPU
     flatten(l.delta, l.w*l.h, size*l.n, l.batch, 0);
     #endif
     *(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
-    printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
+    print_to_stdout("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
 
 void backward_region_layer(const region_layer l, network_state state)

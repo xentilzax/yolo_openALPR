@@ -13,6 +13,7 @@ extern "C" {
 #include "data.h"
 #include "tree.h"
 
+
 typedef enum {
     CONSTANT, STEP, EXP, POLY, STEPS, SIG, RANDOM
 } learning_rate_policy;
