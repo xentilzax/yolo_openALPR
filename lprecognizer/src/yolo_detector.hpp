@@ -24,7 +24,7 @@ public:
 
     void Init();
     static void ParseConfig(cJSON* json, YOLO_Config & cfg);
-    void Detection(std::shared_ptr<Event> & event);
+    std::shared_ptr<IZ::Event> Detection(std::shared_ptr<Event> event);
 
     YOLO_Config cfg;
     std::shared_ptr<Detector> yolo;

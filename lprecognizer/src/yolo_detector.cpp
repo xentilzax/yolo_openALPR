@@ -44,25 +44,35 @@ void YOLO_Detector::Init()
 
 
 //-----------------------------------------------------------------------------------------------------
-void YOLO_Detector::Detection(std::shared_ptr<IZ::Event> & event)
+std::shared_ptr<IZ::Event> YOLO_Detector::Detection(std::shared_ptr<IZ::Event> event)
 {
     std::shared_ptr<EventObjectDetection> eventObjectDetection = std::make_shared<EventObjectDetection>(event.get());
 
     for(size_t k = 0; k < eventObjectDetection->arrayResults.size(); k++) {
 
-        cv::Mat img = std::dynamic_pointer_cast<ResultMotion>(eventObjectDetection->arrayResults[k])->frame;
+        std::shared_ptr<ResultDetection> rd ( new ResultDetection(
+                                                  reinterpret_cast<ResultMotion*>(
+                                                      eventObjectDetection->arrayResults[k].get()
+                                                      )));
+
+        const cv::Mat img = rd->frame;
         std::vector<bbox_t> result_vec;
 
         result_vec = yolo->detect(img, cfg.yolo_thresh);
 
-        std::shared_ptr<ResultDetection> rd =
-                std::make_shared<ResultDetection>(
-                    new ResultDetection(
-                        std::dynamic_pointer_cast<ResultMotion>(
-                            eventObjectDetection->arrayResults[k]).get()));
-
         for(size_t i = 0; i < result_vec.size(); i++) {
             bbox_t b = result_vec[i];
+
+            if((b.x + b.w) >= (unsigned int)img.cols) {
+                b.w -= (b.x + b.w) - img.cols + 1;
+            }
+            if((b.y + b.h) >= (unsigned int)img.rows) {
+                b.h -= (b.y + b.h) - img.rows + 1;
+            }
+            if(b.x+1 >= (unsigned int)img.cols || b.y+1 >= (unsigned int)img.rows )
+                continue;
+
+
             std::shared_ptr<DataDetection> data = std::make_shared<DataDetection>(rd.get(), i);
 
             cv::Point point;
@@ -93,7 +103,7 @@ void YOLO_Detector::Detection(std::shared_ptr<IZ::Event> & event)
         eventObjectDetection->arrayResults[k] = std::static_pointer_cast<Result>(rd);
     }
 
-    event = std::static_pointer_cast<Event>(eventObjectDetection);
+    return std::static_pointer_cast<Event>(eventObjectDetection);
 }
 
 

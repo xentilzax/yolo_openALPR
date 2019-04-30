@@ -1,9 +1,9 @@
-//---------------------------------------------------------------------------------------------------------------
+
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
 
-#include "disk_cleaner.hpp"
+#include "disk_adapter.hpp"
 
 using namespace IZ;
 
@@ -13,7 +13,7 @@ int GetDir (const std::string & dir, std::vector<std::string> & files)
     DIR *dp;
     struct dirent *dirp;
     if((dp  = opendir(dir.c_str())) == NULL) {
-        std::cout << "Error(" << errno << ") opening " << dir << std::endl;
+        std::cerr << "Error(" << errno << ") opening " << dir << std::endl;
         return errno;
     }
 
@@ -97,14 +97,14 @@ bool GetListEvents(const std::string & path, std::vector<IZ::DiskEventItem> & ev
                 if( GetDir(path_event, file_list) != 0 )
                     return false;
 
-                std::string file_name;
                 if( file_list.size() > 0 ) {
-
-
-                    IZ::DiskEventItem evn;
-                    evn.files = file_list;
-                    evn.timeLabel = GetTimeEvent(event);
-                    events.push_back(evn);
+                    IZ::DiskEventItem item;
+                    for(std::string & file_name : file_list ) {
+                        file_name = path_event + "/" + file_name;
+                    }
+                    item.files = file_list;
+                    item.timeLabel = GetTimeEvent(event);
+                    events.push_back(item);
                 }
             }
         }
@@ -116,15 +116,14 @@ bool GetListEvents(const std::string & path, std::vector<IZ::DiskEventItem> & ev
 //---------------------------------------------------------------------------------------------------------------
 bool DeleteEmptyDir(const std::string & path)
 {
-    std::vector<std::string> date_list;
-
-    if( GetDir(path, date_list) != 0 )
-        return false;
-
     bool isChanged = true;
 
     while(isChanged) {
-        isChanged = false;
+         std::vector<std::string> date_list;
+         isChanged = false;
+
+        if( GetDir(path, date_list) != 0 )
+            return false;
 
         for(const std::string & date: date_list) {
             std::vector<std::string> hour_list;
@@ -133,7 +132,10 @@ bool DeleteEmptyDir(const std::string & path)
                 return false;
 
             if( hour_list.empty()) {
-                if( remove(path_date.c_str()) != 0 ) std::cerr << "Error deleting file " << path_date << std::endl;
+                if( remove(path_date.c_str()) != 0 ) {
+                    std::cerr << "Error deleting path " << path_date << std::endl;
+                    return false;
+                }
                 isChanged = true;
             }
 
@@ -144,7 +146,10 @@ bool DeleteEmptyDir(const std::string & path)
                     return false;
 
                 if( event_list.empty()) {
-                    if( remove(path_hour.c_str()) != 0 ) std::cerr << "Error deleting file " << path_hour << std::endl;
+                    if( remove(path_hour.c_str()) != 0 ) {
+                        std::cerr << "Error deleting path " << path_hour << std::endl;
+                        return false;
+                    }
                     isChanged = true;
                 }
 
@@ -155,7 +160,10 @@ bool DeleteEmptyDir(const std::string & path)
                         return false;
 
                     if( file_list.empty()) {
-                        if( remove(path_event.c_str()) != 0 ) std::cerr << "Error deleting file " << path_event << std::endl;
+                        if( remove(path_event.c_str()) != 0 ) {
+                            std::cerr << "Error deleting path " << path_event << std::endl;
+                            return false;
+                        }
                         isChanged = true;
                     }
                 }
@@ -167,14 +175,14 @@ bool DeleteEmptyDir(const std::string & path)
 }
 
 //---------------------------------------------------------------------------------------------------------------
-bool DeleteEvent(std::vector<IZ::DiskEventItem> & events, int count)
+bool DeleteEvents(std::vector<IZ::DiskEventItem> & events, int count)
 {
     if( events.size() == 0 ) {
         std::cerr << "Nothing to delete" << std::endl;
         return false;
     }
 
-    for(int i = events.size() - 1; i >= events.size() - count; i--) {
+    for(size_t i = events.size() - 1; i >= events.size() - count; i--) {
         for(const std::string & file : events[i].files) {
             if( remove(file.c_str()) != 0 ) {
                 std::cerr << "Error deleting file " << file << std::endl;
@@ -182,6 +190,9 @@ bool DeleteEvent(std::vector<IZ::DiskEventItem> & events, int count)
             }
         }
     }
+
+    events.resize(events.size() - count);
+
     return true;
 }
 
@@ -189,15 +200,10 @@ bool DeleteEvent(std::vector<IZ::DiskEventItem> & events, int count)
 bool DeleteOlderEvents(std::vector<IZ::DiskEventItem> & events, unsigned int count)
 {
     //sort events by time mark
-    std::sort(events.begin(), events.end(), [](const IZ::Event & a, const IZ::Event & b) { return a.timeLabel > b.timeLabel; });
+    std::sort(events.begin(), events.end(), [](const IZ::DiskEventItem & a, const IZ::DiskEventItem & b) { return a.timeLabel > b.timeLabel; });
 
     //delete older events
-    if(!DeleteEvent(events, count))
-        return false;
-
-    events.resize(events.size() - count);
-
-    return true;
+    return DeleteEvents(events, count);
 }
 
 //---------------------------------------------------------------------------------------------------------------
@@ -212,7 +218,7 @@ bool GetSizeFreeDiskSpace(const std::string & path, unsigned long long * freeSz)
     }
 
     *freeSz = statFS.f_bsize * statFS.f_bavail;//f_bfree;
-    *freeSz /= 1024 * 1024;
+    *freeSz /= 1024;
 
     return true;
 }
@@ -225,33 +231,24 @@ bool DiskCleaner::ControlDiskSpace()
     std::vector<IZ::DiskEventItem> events;
     unsigned long long freeSz;
 
-    res &= GetListEvents(path, events);
-    res &= GetSizeFreeDiskSpace(path, &freeSz);
+    if( !GetListEvents(path, events) )
+        return false;
+    if( !GetSizeFreeDiskSpace(path, &freeSz) )
+        return false;
 
-    if(cfg.verbose_level > 0) {
-        std::cout << "Before cleaning disk" << std::endl;
-        std::cout << "free space: " << freeSz << std::endl;
-        std::cout << "number events: " << events.size() << std::endl;
-    }
-
-
-    while( freeSz < cfg.min_size_free_space ) {
-        DeleteOlderEvents(events, 1);
+    while( freeSz < cfg.min_size_free_space && events.size() > 0) {
+        res &= DeleteOlderEvents(events, 1);
         res &= GetSizeFreeDiskSpace(path, &freeSz);
+        if(!res)
+            return false;
     }
 
-    if( events.size() > cfg.max_event_number ) {
-        DeleteOlderEvents(events, events.size() - cfg.max_event_number);
+    if( events.size() > cfg.max_event_number  && events.size() > 0) {
+        res &= DeleteOlderEvents(events, events.size() - cfg.max_event_number);
         res &= GetSizeFreeDiskSpace(path, &freeSz);
+        if(!res)
+            return false;
     }
-
-
-    if(cfg.verbose_level > 0) {
-        std::cout << "After cleaning disk" << std::endl;
-        std::cout << "free space: " << freeSz << std::endl;
-        std::cout << "number events: " << events.size() << std::endl;
-    }
-
 
     res &= DeleteEmptyDir(path);
 

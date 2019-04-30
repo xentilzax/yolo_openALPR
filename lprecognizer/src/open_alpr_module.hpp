@@ -28,8 +28,8 @@ public:
 
     void Init();
     static void ParseConfig(cJSON* json, ALPR_Config & cfg);
-    void Detection(std::shared_ptr<Event> & event);
-    void Recognize(std::shared_ptr<Event> & event);
+    std::shared_ptr<IZ::Event> Detection(std::shared_ptr<Event> event);
+    std::shared_ptr<IZ::Event> Recognize(std::shared_ptr<Event> event);
 
     ALPR_Config cfg;
 

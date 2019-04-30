@@ -14,8 +14,8 @@
 
 size_t ignore_output( void *ptr, size_t size, size_t nmemb, void *stream)
 {
-    (void) ptr;
-    (void) stream;
+//    (void) ptr;
+//    (void) stream;
     return size * nmemb;
 }
 
@@ -24,6 +24,12 @@ name and value must be UTF-8 strings.
 Returns TRUE on success, FALSE on failure.
 */
 int PostHTTP(const std::string & url, const std::string & json, int verbose_level)
+{
+    return PostHTTP(url, json.c_str(), verbose_level);
+}
+
+
+int PostHTTP(const std::string & url, const char * json, int verbose_level)
 {
     int retcode = FALSE;
     CURL *curl = NULL;
@@ -59,7 +65,7 @@ int PostHTTP(const std::string & url, const std::string & json, int verbose_leve
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
 
     /* This is a test server, it fakes a reply as if the json object were

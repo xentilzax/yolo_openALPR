@@ -51,7 +51,7 @@ class LicensePlateRecognizer
 {
 public:
     virtual ~LicensePlateRecognizer() {}
-    virtual void Recognize(std::shared_ptr<Event> & event) = 0;
+    virtual std::shared_ptr<IZ::Event> Recognize(std::shared_ptr<Event> event) = 0;
 };
 
 }

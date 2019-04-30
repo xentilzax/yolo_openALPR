@@ -82,17 +82,6 @@ int main(int argc, char *argv[])
         return 0x0B;
     }
 
-    //    if(curl_global_init(CURL_GLOBAL_ALL)) {
-    //        fprintf(stderr, "Fatal: The initialization of libcurl has failed.\n");
-    //        return EXIT_FAILURE;
-    //    }
-
-    //    if(atexit(curl_global_cleanup)) {
-    //        fprintf(stderr, "Fatal: atexit failed to register curl_global_cleanup.\n");
-    //        curl_global_cleanup();
-    //        return EXIT_FAILURE;
-    //    }
-
 
     ConveerImpl conveer;
     //define motion detector
@@ -166,7 +155,7 @@ int main(int argc, char *argv[])
 
             auto startDetectorTime = system_clock::now();
 
-            conveer.detector->Detection(event);
+            event = conveer.detector->Detection(event);
 
             detectorTime = system_clock::now();
 
@@ -184,24 +173,28 @@ int main(int argc, char *argv[])
             }
 
             auto startRecognizeTime = system_clock::now();
-            conveer.recognizer->Recognize(event);
+            event = conveer.recognizer->Recognize(event);
             recognitionTime = system_clock::now();
 
             for(auto adapter :conveer.recognizerAdapters) {
                 adapter->SaveEvent(event);
             }
 
-            if ( cfg.gui_enable ) {
-                //                for(size_t i = 0; i < event->arrayResults.size(); i++) {
-                //                    for( auto & obj : eventsDetection[i].detectedObjects) {
-                //                        cv::imshow(std::to_string(i), obj.croppedFrame);
-                //                    }
-                //                }
-            }
-
             endTime = system_clock::now();
 
             if ( cfg.gui_enable ) {
+                cv::Size sz(320, 240);
+                for(size_t i = 0; i < event->arrayResults.size(); i++) {
+                    std::shared_ptr<IZ::ResultMotion> item = std::dynamic_pointer_cast<IZ::ResultMotion>(event->arrayResults[i]);
+
+                    cv::Mat eventFrame;
+                    cv::resize(item->frame, eventFrame, sz);
+                    cv::imshow(std::to_string(i), eventFrame);
+                    //                    for( auto & obj : item[i].detectedObjects) {
+                    //                        cv::imshow(std::to_string(i), obj.croppedFrame);
+                    //                    }
+                }
+                cv::resize(img, img, sz);
                 cv::imshow("video stream", img);
                 if (cv::waitKey(1) >= 0)
                     return 0;

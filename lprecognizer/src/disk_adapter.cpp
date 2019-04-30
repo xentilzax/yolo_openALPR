@@ -3,8 +3,10 @@
 #include <iostream>
 #include <fstream>
 #include <thread>         // std::thread
+#include <chrono>
 
 using namespace IZ;
+using namespace std::chrono;
 
 //-------------------------------------------------------------------------------------
 SavingThread* SavingThread::ptrThis = nullptr;
@@ -33,7 +35,7 @@ void DiskAdapter::ParseConfig(cJSON* json_sub, DiskAdapter_Config & cfg)
         cfg.max_event_number = json_item->valueint;
     }
 
-    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "min_size_free_space");
+    json_item = cJSON_GetObjectItemCaseSensitive(json_sub, "min_kilobytes_free_space");
     if (cJSON_IsNumber(json_item)) {
         cfg.min_size_free_space = json_item->valueint;
     }
@@ -60,15 +62,19 @@ bool SavingThread::QueueIsEmpty(std::shared_ptr<Event> & event)
 //-------------------------------------------------------------------------------------
 void SavingThread::Saving(SavingThread* ptr)
 {
-    milliseconds startTime = duration_cast<milliseconds>( system_clock::now().time_since_epoch() );
+    milliseconds startTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()) -
+            std::chrono::milliseconds(ptr->cfg.removal_period_minutes*60*1000);
     milliseconds currTime;
 
     while(ptr->enableWorking) {
         currTime = duration_cast<milliseconds>( system_clock::now().time_since_epoch() );
 
-        if(duration_cast<milliseconds>(currTime - startTime).count() > cfg.removal_period_minutes*60*1000) {
-            if(ptr->diskCleaner.ControlDiskSpace())
+        if(duration_cast<milliseconds>(currTime - startTime).count() > ptr->cfg.removal_period_minutes*60*1000) {
+            startTime = duration_cast<milliseconds>( system_clock::now().time_since_epoch() );
+
+            if(!ptr->diskCleaner.ControlDiskSpace()) {
                 throw std::runtime_error("Error cleaning disk");
+            }
         }
 
         std::shared_ptr<Event> event;
@@ -85,7 +91,7 @@ void SavingThread::Saving(SavingThread* ptr)
         cJSON * jsonItem = event->GenerateJson();
         cJSON_AddItemToObject(json, "event", jsonItem);
 
-        std::unique_ptr<char[]> textJson( cJSON_Print(json) );
+        std::unique_ptr<char, std::function<void(char*)>> textJson( cJSON_Print(json), [](char* ptr){cJSON_free(ptr);} );
 
         cJSON_Delete(json);
 

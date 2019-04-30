@@ -5,4 +5,4 @@
 #include <string>
 
 
-int PostHTTP(const std::string & url, const std::string & json, int verbose_level);
+int PostHTTP(const std::string & url, const char *json, int verbose_level);

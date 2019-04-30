@@ -9,7 +9,6 @@
 
 #include "cJSON.h"
 #include "save_adapter.hpp"
-#include "disk_cleaner.hpp"
 
 namespace IZ {
 
@@ -23,6 +22,25 @@ public:
     unsigned int removal_period_minutes = 10;
 };
 
+//-------------------------------------------------------------------------------------
+class DiskEventItem
+{
+public:
+    std::vector<std::string> files;
+    unsigned long long timeLabel;
+};
+
+//-------------------------------------------------------------------------------------
+class DiskCleaner
+{
+public:
+    DiskCleaner(const DiskAdapter_Config & conf)
+        : cfg(conf)
+    {}
+    bool ControlDiskSpace();
+
+    DiskAdapter_Config cfg;
+};
 
 //-------------------------------------------------------------------------------------
 //Singlton
@@ -32,7 +50,6 @@ class SavingThread
     std::atomic<bool> enableWorking;
     std::thread savingThread;
     DiskCleaner diskCleaner;
-
 
     static SavingThread* ptrThis;
 

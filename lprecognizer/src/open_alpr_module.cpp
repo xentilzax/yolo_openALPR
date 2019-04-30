@@ -71,7 +71,7 @@ void ALPR_Module::Init()
 }
 
 //-----------------------------------------------------------------------------------------------------
-void ALPR_Module::Detection(std::shared_ptr<Event> & event)
+std::shared_ptr<IZ::Event> ALPR_Module::Detection(std::shared_ptr<Event> event)
 {
     open_alpr_use_detector = true;
     alprResults.clear();
@@ -106,11 +106,11 @@ void ALPR_Module::Detection(std::shared_ptr<Event> & event)
         eventObjectDetection->arrayResults[k] = rd;
     }
 
-    event = eventObjectDetection;
+    return std::static_pointer_cast<Event>(eventObjectDetection);
 }
 
 //-----------------------------------------------------------------------------------------------------
-void ALPR_Module::Recognize(std::shared_ptr<Event> & event)
+std::shared_ptr<IZ::Event> ALPR_Module::Recognize(std::shared_ptr<Event> event)
 {
     std::shared_ptr<EventObjectRecognize> eventObjectRecognize = std::make_shared<EventObjectRecognize>(event.get());
 
@@ -145,10 +145,10 @@ void ALPR_Module::Recognize(std::shared_ptr<Event> & event)
             std::shared_ptr<ResultDetection> rd = std::dynamic_pointer_cast<ResultDetection>(eventObjectRecognize->arrayResults[k]);
 
             for(size_t i = 0; i < rd->objectData.size(); i++) {
-                DataDetection* dd = reinterpret_cast<DataDetection*>(rd->objectData[i].get());
+                const DataDetection* dd = reinterpret_cast<DataDetection*>(rd->objectData[i].get());
                 std::shared_ptr<DataRecognition> data(new DataRecognition(dd));
 
-                cv::Mat img = dd->croppedFrame;
+                cv::Mat img = data->croppedFrame;
 
                 alpr::AlprResults alprResult;
                 alprResult = openalpr->recognize((unsigned char*)(img.data), img.channels(), img.cols, img.rows, roi_list);
@@ -174,5 +174,5 @@ void ALPR_Module::Recognize(std::shared_ptr<Event> & event)
         }
     }
 
-    event = eventObjectRecognize;
+    return std::static_pointer_cast<Event>(eventObjectRecognize);
 }

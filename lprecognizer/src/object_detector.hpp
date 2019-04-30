@@ -88,7 +88,7 @@ class ObjectDetector
 {
 public:
     virtual ~ObjectDetector() {}
-    virtual void Detection(std::shared_ptr<IZ::Event> & event) = 0;
+    virtual std::shared_ptr<IZ::Event> Detection(std::shared_ptr<IZ::Event> event) = 0;
 };
 
 }

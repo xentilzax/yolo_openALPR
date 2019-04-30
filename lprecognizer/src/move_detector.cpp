@@ -16,13 +16,6 @@ MoveDetector::MoveDetector(const MoveDetector_Config & conf)
     countFrameDetection = 0;
     endDetectionFrame.resize(cfg.bs_number_last_frame_detection);
     startDetectionFrame.resize(cfg.bs_number_first_frame_detection);
-
-//    for(int i = 0; i < cfg.bs_number_last_frame_detection; i++) {
-//        endDetectionFrame[i] = std::make_shared<ResultMotion>();
-//    }
-//    for(int i = 0; i < cfg.bs_number_first_frame_detection; i++) {
-//        startDetectionFrame[i] = std::make_shared<ResultMotion>();
-//    }
 }
 
 //-------------------------------------------------------------------------------------
@@ -107,10 +100,12 @@ void MoveDetector::ParseConfig(cJSON* json_sub, MoveDetector_Config & cfg)
 //-------------------------------------------------------------------------------------
 std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t timestamp)
 {
+    assert(timestamp > 0);
+
     if(img.cols <= 0 || img.rows <= 0)
         throw std::runtime_error("wrong image size");
 
-    std::shared_ptr<IZ::Event> result = std::make_shared<EventMotionDetection>();
+    std::shared_ptr<IZ::EventMotionDetection> result = std::make_shared<EventMotionDetection>();
 
     int new_h = img.rows * cfg.bs_work_width_frame / img.cols;
     cv::Size sz(cfg.bs_work_width_frame, new_h);
@@ -122,7 +117,7 @@ std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t 
 
     cv::Size szGaussian(cfg.bs_gaussian_blur_size, cfg.bs_gaussian_blur_size);
 
-//    cv::Mat grey_bg;
+    //    cv::Mat grey_bg;
     cv::GaussianBlur(gray, gray , szGaussian, 0);
     cv::medianBlur(gray, gray_bg, cfg.bs_median_blur_size);
 
@@ -164,15 +159,18 @@ std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t 
     std::vector<std::vector<cv::Point> > contours;
     cv::findContours(thresh, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-//    cv::Mat tmp;
-//    cv::imshow("main", frame);
-//    cv::convertScaleAbs(gray, tmp);
-//    cv::imshow("gray", tmp);
-//    cv::convertScaleAbs(avg_bg, tmp);
-//    cv::imshow("avg_bg", tmp);
+    //    cv::Mat tmp;
+    //    frame.copyTo(tmp);
+    //    cv::rectangle(tmp, roi, cv::Scalar(255,0,0));
+    //    cv::imshow("main", tmp);
+    //    cv::convertScaleAbs(gray, tmp);
+    //    cv::imshow("gray", tmp);
+    //    cv::convertScaleAbs(avg_bg, tmp);
+    //    cv::imshow("avg_bg", tmp);
 
-//    cv::imshow("delta", mask);
-//    cv::imshow("thresh", thresh);
+    //    cv::imshow("delta", mask);
+    //    cv::imshow("thresh", thresh);
+    //    cv::waitKey(1);
 
     for(size_t i = 0; i < contours.size(); i++) {
         cv::Rect bbox;
@@ -185,8 +183,8 @@ std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t 
     }
 
     if( fStartDetected == true && fDetected == false ) {
-        for(int i = 0; i < cfg.bs_number_first_frame_detection; i++) {
-
+        for(int i = 0; i < startDetectionIndex; i++) {
+            assert (startDetectionFrame[i].timestamp >0);
             result->arrayResults.push_back(std::shared_ptr<Result>(
                                                new ResultMotion(startDetectionFrame[i])));
         }
@@ -197,10 +195,11 @@ std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t 
 
         int idx = endDetectionIndex - 1;
         for(int i = 0; i < countFrameDetection; i++) {
-            int n = idx - countFrameDetection + i;
+            int n = idx - i;
             while( n < 0 ) {
                 n += cfg.bs_number_last_frame_detection;
             }
+            assert (endDetectionFrame[n].timestamp >0);
             result->arrayResults.push_back(std::shared_ptr<Result>(
                                                new ResultMotion(endDetectionFrame[n])));
         }
@@ -233,5 +232,5 @@ std::shared_ptr<IZ::Event> MoveDetector::Detection(const cv::Mat & img, int64_t 
         countFrameDetection = 0;
     }
 
-    return result;
+    return std::static_pointer_cast<Event>(result);
 }
